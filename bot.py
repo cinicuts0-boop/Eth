@@ -16,13 +16,12 @@ last_signal = ""
 while True:
     try:
         res = requests.get(URL).json()
-
-        # ✅ correct extraction
         price = res['ethereum']['usd']
+
         print("ETH Price:", price)
 
-        # 🔥 signal logic
-         if price < 2000 and last_signal != "BUY":
+        # ✅ correct indentation
+        if price < 2000 and last_signal != "BUY":
             send_message(f"BUY SIGNAL 🚀\nPrice: {price}")
             last_signal = "BUY"
 
@@ -30,15 +29,8 @@ while True:
             send_message(f"SELL SIGNAL 🔻\nPrice: {price}")
             last_signal = "SELL"
 
-
-        # ✅ VERY IMPORTANT (rate limit fix)
-        time.sleep(120)  # 2 minutes
+        time.sleep(120)
 
     except Exception as e:
         print("Error:", e)
         time.sleep(120)
-        time.sleep(60)
-
-    except Exception as e:
-        print("Error:", e)
-        time.sleep(60)
