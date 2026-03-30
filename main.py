@@ -27,7 +27,14 @@ def get_data():
 def strategy():
     df = get_data()
 
-    # Indicators
+    if df is None or df.empty:
+        print("No data available")
+        return None
+
+    if len(df) < 20:
+        print("Not enough data")
+        return None
+
     df['ema'] = df['close'].ewm(span=20).mean()
     df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
 
@@ -35,31 +42,10 @@ def strategy():
 
     print("Price:", last['close'], "EMA:", last['ema'], "RSI:", last['rsi'])
 
-    # BUY
     if last['close'] > last['ema'] and last['rsi'] > 55:
         return f"📈 BUY ETH\nPrice: {last['close']}"
 
-    # SELL
     elif last['close'] < last['ema'] and last['rsi'] < 45:
         return f"📉 SELL ETH\nPrice: {last['close']}"
 
     return None
-
-last_signal = None
-
-print("🚀 ETH BOT STARTED")
-
-while True:
-    try:
-        signal = strategy()
-
-        if signal and signal != last_signal:
-            send_telegram(f"🚨 ETH SIGNAL\n{signal}")
-            last_signal = signal
-        else:
-            print("No signal")
-
-    except Exception as e:
-        print("Error:", e)
-
-    time.sleep(180)
