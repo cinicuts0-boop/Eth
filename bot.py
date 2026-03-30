@@ -22,9 +22,9 @@ while True:
         print("ETH Price:", price)
 
         # 🔥 signal logic
-        if price < 2000 and last_signal != "BUY":
-            send_message(f"BUY SIGNAL 🚀\nPrice: {price}")
-            last_signal = "BUY"
+        if price < 3000 and last_signal != "BUY":
+    send_message(f"BUY SIGNAL 🚀\nPrice: {price}")
+    last_signal = "BUY"
 
         elif price > 2500 and last_signal != "SELL":
             send_message(f"SELL SIGNAL 🔻\nPrice: {price}")
