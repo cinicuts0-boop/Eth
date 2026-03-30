@@ -1,26 +1,27 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
+from flask import Flask, request
+import requests
 
-from config import logger, SYMBOLS, CHECK_INTERVAL_MINUTES, validate_credentials
-from database import init_db
-from scheduler import start_scheduler
-from telegram_alerts import send_startup_message
+app = Flask(__name__)
 
+TOKEN = "8562765008:AAG4-qmd9949TGGQ7F5nGkOMMhXBdZlm8Ng"
+CHAT_ID = "8007854479"
 
-def main():
-    logger.info("=" * 50)
-    logger.info("  Trading Signal Bot")
-    logger.info("=" * 50)
-    logger.info(f"Symbols : {', '.join(SYMBOLS)}")
-    logger.info(f"Interval: every {CHECK_INTERVAL_MINUTES} min")
-    logger.info(f"Telegram: {'configured' if validate_credentials() else 'NOT configured (dry-run)'}")
-    logger.info("=" * 50)
+def send_telegram(msg):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
-    init_db()
-    send_startup_message(SYMBOLS)
-    start_scheduler()
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.json
 
+    message = f"""
+🚀 ETH SIGNAL
 
-if __name__ == "__main__":
-    main()
+Type: {data.get('type')}
+Price: {data.get('price')}
+Time: {data.get('time')}
+"""
+    send_telegram(message)
+    return {"status": "ok"}
+
+app.run(host="0.0.0.0", port=8080)
