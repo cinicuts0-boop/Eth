@@ -3,8 +3,8 @@ import requests
 import time
 import os
 
-TOKEN = os.getenv("8562765008:AAG4-qmd9949TGGQ7F5nGkOMMhXBdZlm8Ng")
-CHAT_ID = os.getenv("8007854479")
+TOKEN = "8562765008:AAG4-qmd9949TGGQ7F5nGkOMMhXBdZlm8Ng"
+CHAT_ID = "8007854479"
 
 URL = "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1"
 
