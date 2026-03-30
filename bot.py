@@ -1,3 +1,4 @@
+
 import requests
 import time
 
@@ -11,17 +12,12 @@ def send_message(text):
     requests.post(url, data={"chat_id": CHAT_ID, "text": text})
 
 def calculate_rsi(prices, period=14):
-    gains = []
-    losses = []
+    gains, losses = [], []
 
     for i in range(1, len(prices)):
         diff = prices[i] - prices[i-1]
-        if diff > 0:
-            gains.append(diff)
-            losses.append(0)
-        else:
-            gains.append(0)
-            losses.append(abs(diff))
+        gains.append(max(diff, 0))
+        losses.append(abs(min(diff, 0)))
 
     avg_gain = sum(gains[-period:]) / period
     avg_loss = sum(losses[-period:]) / period
@@ -32,7 +28,7 @@ def calculate_rsi(prices, period=14):
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
 
-def calculate_ema(prices, period=20):
+def calculate_ema(prices, period):
     ema = prices[0]
     k = 2 / (period + 1)
 
@@ -53,20 +49,32 @@ while True:
             continue
 
         prices = [p[1] for p in res['prices']]
-
-        rsi = calculate_rsi(prices)
-        ema = calculate_ema(prices)
         current_price = prices[-1]
 
-        print(f"Price: {current_price} | RSI: {rsi} | EMA: {ema}")
+        rsi = calculate_rsi(prices)
+        ema_fast = calculate_ema(prices, 20)
+        ema_slow = calculate_ema(prices, 50)
 
-        # 🔥 SMART LOGIC
-        if rsi < 30 and current_price > ema and last_signal != "BUY":
-            send_message(f"BUY 🚀\nPrice: {current_price}\nRSI: {rsi:.2f}")
+        print(f"Price: {current_price} | RSI: {rsi} | EMA20: {ema_fast} | EMA50: {ema_slow}")
+
+        # 🟢 BUY CONDITION
+        if (rsi < 30 and current_price > ema_fast and ema_fast > ema_slow and last_signal != "BUY"):
+            target = current_price * 1.02
+            stoploss = current_price * 0.99
+
+            send_message(
+                f"BUY 🚀\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}\nTarget: {target:.2f}\nSL: {stoploss:.2f}"
+            )
             last_signal = "BUY"
 
-        elif rsi > 70 and current_price < ema and last_signal != "SELL":
-            send_message(f"SELL 🔻\nPrice: {current_price}\nRSI: {rsi:.2f}")
+        # 🔴 SELL CONDITION
+        elif (rsi > 70 and current_price < ema_fast and ema_fast < ema_slow and last_signal != "SELL"):
+            target = current_price * 0.98
+            stoploss = current_price * 1.01
+
+            send_message(
+                f"SELL 🔻\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}\nTarget: {target:.2f}\nSL: {stoploss:.2f}"
+            )
             last_signal = "SELL"
 
         time.sleep(180)
