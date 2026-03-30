@@ -1,3 +1,4 @@
+
 import requests
 import time
 import os
@@ -16,8 +17,13 @@ last_signal = ""
 while True:
     try:
         res = requests.get(URL).json()
-        price = float(res['price'])
 
+        if 'price' not in res:
+            print("API Error:", res)
+            time.sleep(60)
+            continue
+
+        price = float(res['price'])
         print("ETH Price:", price)
 
         if price < 3000 and last_signal != "BUY":
@@ -28,6 +34,11 @@ while True:
             send_message(f"SELL SIGNAL 🔻\nPrice: {price}")
             last_signal = "SELL"
 
+        time.sleep(60)
+
+    except Exception as e:
+        print("Error:", e)
+        time.sleep(60)
         time.sleep(60)
 
     except Exception as e:
