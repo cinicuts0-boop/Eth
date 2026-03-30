@@ -1,7 +1,5 @@
-
 import requests
 import time
-import os
 
 TOKEN = "8562765008:AAG4-qmd9949TGGQ7F5nGkOMMhXBdZlm8Ng"
 CHAT_ID = "8007854479"
@@ -34,24 +32,41 @@ def calculate_rsi(prices, period=14):
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
 
+def calculate_ema(prices, period=20):
+    ema = prices[0]
+    k = 2 / (period + 1)
+
+    for price in prices:
+        ema = price * k + ema * (1 - k)
+
+    return ema
+
 last_signal = ""
 
 while True:
     try:
         res = requests.get(URL).json()
 
+        if 'prices' not in res:
+            print("API error:", res)
+            time.sleep(180)
+            continue
+
         prices = [p[1] for p in res['prices']]
 
         rsi = calculate_rsi(prices)
+        ema = calculate_ema(prices)
+        current_price = prices[-1]
 
-        print("RSI:", rsi)
+        print(f"Price: {current_price} | RSI: {rsi} | EMA: {ema}")
 
-        if rsi < 30 and last_signal != "BUY":
-            send_message(f"BUY SIGNAL 🚀\nRSI: {rsi:.2f}")
+        # 🔥 SMART LOGIC
+        if rsi < 30 and current_price > ema and last_signal != "BUY":
+            send_message(f"BUY 🚀\nPrice: {current_price}\nRSI: {rsi:.2f}")
             last_signal = "BUY"
 
-        elif rsi > 70 and last_signal != "SELL":
-            send_message(f"SELL SIGNAL 🔻\nRSI: {rsi:.2f}")
+        elif rsi > 70 and current_price < ema and last_signal != "SELL":
+            send_message(f"SELL 🔻\nPrice: {current_price}\nRSI: {rsi:.2f}")
             last_signal = "SELL"
 
         time.sleep(180)
