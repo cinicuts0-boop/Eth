@@ -48,9 +48,7 @@ def strategy():
         return None
 
     try:
-        df['ema'] = df['close'].ewm(span=20).mean()
         df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
-
         df = df.dropna()
 
         if df.empty:
@@ -58,20 +56,17 @@ def strategy():
 
         last = df.iloc[-1]
 
-        print("Price:", last['close'], "EMA:", last['ema'], "RSI:", last['rsi'])
+        print("RSI:", last['rsi'])
 
-        # ✅ BUY
-        if last['close'] > last['ema'] and last['rsi'] > 50:
+        # 🔥 ALWAYS SIGNAL LOGIC
+        if last['rsi'] >= 50:
             return f"📈 BUY ETH\nPrice: {last['close']}"
 
-        # ✅ SELL
-        elif last['close'] < last['ema'] and last['rsi'] < 50:
+        else:
             return f"📉 SELL ETH\nPrice: {last['close']}"
 
-        return None
-
     except Exception as e:
-        print("Strategy Error:", e)
+        print("Error:", e)
         return None
 
 last_signal = None
