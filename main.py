@@ -72,12 +72,12 @@ def strategy():
         print("Price:", last['close'], "EMA:", last['ema'], "RSI:", last['rsi'])
 
         # BUY
-        if last['close'] > last['ema'] and last['rsi'] > 55:
-            return f"📈 BUY ETH\nPrice: {last['close']}"
+if last['close'] > last['ema'] and last['rsi'] > 50:
+    return f"📈 BUY ETH\nPrice: {last['close']}"
 
-        # SELL
-        elif last['close'] < last['ema'] and last['rsi'] < 45:
-            return f"📉 SELL ETH\nPrice: {last['close']}"
+# SELL
+elif last['close'] < last['ema'] and last['rsi'] < 50:
+    return f"📉 SELL ETH\nPrice: {last['close']}"
 
         return None
 
