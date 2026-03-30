@@ -6,7 +6,7 @@ import os
 TOKEN = os.getenv("8562765008:AAG4-qmd9949TGGQ7F5nGkOMMhXBdZlm8Ng")
 CHAT_ID = os.getenv("8007854479")
 
-URL = "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
+URL = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
