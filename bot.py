@@ -1,4 +1,3 @@
-
 import requests
 import time
 import os
@@ -18,27 +17,25 @@ while True:
     try:
         res = requests.get(URL).json()
 
-        if 'price' not in res:
-            print("API Error:", res)
-            time.sleep(60)
-            continue
-
-        price = float(res['price'])
+        # ✅ correct extraction
+        price = res['ethereum']['usd']
         print("ETH Price:", price)
 
-        if price < 3000 and last_signal != "BUY":
+        # 🔥 signal logic
+        if price < 2000 and last_signal != "BUY":
             send_message(f"BUY SIGNAL 🚀\nPrice: {price}")
             last_signal = "BUY"
 
-        elif price > 3500 and last_signal != "SELL":
+        elif price > 2500 and last_signal != "SELL":
             send_message(f"SELL SIGNAL 🔻\nPrice: {price}")
             last_signal = "SELL"
 
-        time.sleep(60)
+        # ✅ VERY IMPORTANT (rate limit fix)
+        time.sleep(120)  # 2 minutes
 
     except Exception as e:
         print("Error:", e)
-        time.sleep(60)
+        time.sleep(120)
         time.sleep(60)
 
     except Exception as e:
