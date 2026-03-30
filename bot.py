@@ -4,6 +4,7 @@ import time
 TOKEN = "8562765008:AAG4-qmd9949TGGQ7F5nGkOMMhXBdZlm8Ng"
 CHAT_ID = "8007854479"
 
+
 URL = "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1"
 
 def send_message(text):
@@ -37,6 +38,7 @@ def calculate_ema(prices, period):
     return ema
 
 last_signal = ""
+last_rsi = None
 
 while True:
     try:
@@ -51,30 +53,34 @@ while True:
         current_price = prices[-1]
 
         rsi = calculate_rsi(prices)
-        ema_fast = calculate_ema(prices, 20)
-        ema_slow = calculate_ema(prices, 50)
+        ema20 = calculate_ema(prices, 20)
+        ema50 = calculate_ema(prices, 50)
 
-        print(f"Price: {current_price} | RSI: {rsi} | EMA20: {ema_fast} | EMA50: {ema_slow}")
+        print(f"Price: {current_price} | RSI: {rsi} | EMA20: {ema20} | EMA50: {ema50}")
 
-        # 🟢 BUY CONDITION
-        if (rsi < 30 and current_price > ema_fast and ema_fast > ema_slow and last_signal != "BUY"):
-            target = current_price * 1.02
-            stoploss = current_price * 0.99
+        # 🟢 BUY REVERSAL
+        if (last_rsi is not None and
+            last_rsi < rsi and  # RSI rising
+            rsi < 35 and
+            current_price > ema20 and
+            ema20 > ema50 and
+            last_signal != "BUY"):
 
-            send_message(
-                f"BUY 🚀\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}\nTarget: {target:.2f}\nSL: {stoploss:.2f}"
-            )
+            send_message(f"REVERSAL BUY 🚀\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}")
             last_signal = "BUY"
 
-        # 🔴 SELL CONDITION
-        elif (rsi > 70 and current_price < ema_fast and ema_fast < ema_slow and last_signal != "SELL"):
-            target = current_price * 0.98
-            stoploss = current_price * 1.01
+        # 🔴 SELL REVERSAL
+        elif (last_rsi is not None and
+              last_rsi > rsi and  # RSI falling
+              rsi > 65 and
+              current_price < ema20 and
+              ema20 < ema50 and
+              last_signal != "SELL"):
 
-            send_message(
-                f"SELL 🔻\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}\nTarget: {target:.2f}\nSL: {stoploss:.2f}"
-            )
+            send_message(f"REVERSAL SELL 🔻\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}")
             last_signal = "SELL"
+
+        last_rsi = rsi
 
         time.sleep(180)
 
