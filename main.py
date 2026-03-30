@@ -44,17 +44,7 @@ def get_data():
 def strategy():
     df = get_data()
 
-    # ✅ FULL safety checks
-    if df is None:
-        print("DF None")
-        return None
-
-    if df.empty:
-        print("DF Empty")
-        return None
-
-    if len(df) < 20:
-        print("Not enough candles")
+    if df is None or df.empty:
         return None
 
     try:
@@ -64,20 +54,19 @@ def strategy():
         df = df.dropna()
 
         if df.empty:
-            print("After indicator empty")
             return None
 
         last = df.iloc[-1]
 
         print("Price:", last['close'], "EMA:", last['ema'], "RSI:", last['rsi'])
 
-        # BUY
-if last['close'] > last['ema'] and last['rsi'] > 50:
-    return f"📈 BUY ETH\nPrice: {last['close']}"
+        # ✅ BUY
+        if last['close'] > last['ema'] and last['rsi'] > 50:
+            return f"📈 BUY ETH\nPrice: {last['close']}"
 
-# SELL
-elif last['close'] < last['ema'] and last['rsi'] < 50:
-    return f"📉 SELL ETH\nPrice: {last['close']}"
+        # ✅ SELL
+        elif last['close'] < last['ema'] and last['rsi'] < 50:
+            return f"📉 SELL ETH\nPrice: {last['close']}"
 
         return None
 
