@@ -1,18 +1,19 @@
 
-import requests
+from binance.client import Client
 import time
+
 
 TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
 CHAT_ID = "8007854479"
 
-URL = "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1"
+client = Client(API_KEY, API_SECRET)
 
-def send_message(text):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    try:
-        requests.post(url, data={"chat_id": CHAT_ID, "text": text}, timeout=10)
-    except:
-        print("Telegram error")
+SYMBOL = "ETHUSDT"
+INTERVAL = "1m"   # Binance doesn't have 2m, so use 1m and combine logic
+
+def get_prices():
+    klines = client.get_klines(symbol=SYMBOL, interval=INTERVAL, limit=50)
+    return [float(k[4]) for k in klines]  # closing prices
 
 def calculate_ema(prices, period=20):
     ema = prices[0]
@@ -42,54 +43,33 @@ def calculate_rsi(prices, period=14):
     return 100 - (100 / (1 + rs))
 
 last_signal = ""
-last_signal_time = 0
 
 while True:
     try:
-        res = requests.get(URL, timeout=10).json()
-
-        if 'prices' not in res:
-            print("API error:", res)
-            time.sleep(60)
-            continue
-
-        prices = [p[1] for p in res['prices']]
+        prices = get_prices()
         current_price = prices[-1]
 
-        recent_prices = prices[-21:-1]
-        resistance = max(recent_prices)
-        support = min(recent_prices)
+        recent = prices[-21:-1]
+        resistance = max(recent)
+        support = min(recent)
 
-        rsi = calculate_rsi(prices)
         ema = calculate_ema(prices)
+        rsi = calculate_rsi(prices)
 
         print(f"Price: {current_price} | RSI: {rsi} | EMA: {ema}")
 
-        # cooldown
-        if time.time() - last_signal_time < 1800:
-            time.sleep(60)
-            continue
-
-        # 🟢 BREAKOUT BUY
-        if current_price > resistance * 1.001 and rsi > 55 and current_price > ema:
-            send_message(f"🚀 BREAKOUT BUY\nPrice: {current_price:.2f}")
+        # 🟢 BUY
+        if current_price > resistance and rsi > 55 and current_price > ema and last_signal != "BUY":
+            print("🚀 BUY SIGNAL")
             last_signal = "BUY"
-            last_signal_time = time.time()
-
-        # 🟡 PULLBACK BUY (🔥 BEST)
-        elif current_price > ema and rsi < 50 and last_signal != "BUY":
-            send_message(f"📈 PULLBACK BUY\nPrice: {current_price:.2f}")
-            last_signal = "BUY"
-            last_signal_time = time.time()
 
         # 🔴 SELL
-        elif current_price < support * 0.999 and rsi < 45 and current_price < ema:
-            send_message(f"🔻 SELL\nPrice: {current_price:.2f}")
+        elif current_price < support and rsi < 45 and current_price < ema and last_signal != "SELL":
+            print("🔻 SELL SIGNAL")
             last_signal = "SELL"
-            last_signal_time = time.time()
 
-        time.sleep(600)
+        time.sleep(120)  # ⏱ 2 minutes
 
     except Exception as e:
         print("Error:", e)
-        time.sleep(60)
+        time.sleep(120)
