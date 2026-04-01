@@ -56,7 +56,7 @@ while True:
 
         if 'prices' not in res:
             print("API error:", res)
-            time.sleep(300)
+            time.sleep(60)
             continue
 
         prices = [p[1] for p in res['prices']]
@@ -75,7 +75,7 @@ while True:
 
         # ⏳ cooldown
         if time.time() - last_signal_time < 1800:
-            time.sleep(300)
+            time.sleep(60)
             continue
 
         # 🟢 BUY
@@ -100,8 +100,8 @@ while True:
             last_signal = "SELL"
             last_signal_time = time.time()
 
-        time.sleep(300)
+        time.sleep(60)
 
     except Exception as e:
         print("Error:", e)
-        time.sleep(300)
+        time.sleep(60)
