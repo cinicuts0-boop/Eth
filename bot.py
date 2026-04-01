@@ -14,21 +14,15 @@ def send_message(text):
     except:
         print("Telegram error")
 
-# ✅ EMA calculation
 def calculate_ema(prices, period=20):
     ema = prices[0]
     k = 2 / (period + 1)
-
     for price in prices:
         ema = price * k + ema * (1 - k)
-
     return ema
 
-# ✅ RSI (improved)
 def calculate_rsi(prices, period=14):
-    gains = []
-    losses = []
-
+    gains, losses = [], []
     for i in range(1, len(prices)):
         diff = prices[i] - prices[i-1]
         gains.append(max(diff, 0))
@@ -62,45 +56,39 @@ while True:
         prices = [p[1] for p in res['prices']]
         current_price = prices[-1]
 
-        # 🔥 breakout levels (corrected)
         recent_prices = prices[-21:-1]
         resistance = max(recent_prices)
         support = min(recent_prices)
 
-        # 🔥 indicators
         rsi = calculate_rsi(prices)
         ema = calculate_ema(prices)
 
         print(f"Price: {current_price} | RSI: {rsi} | EMA: {ema}")
 
-        # ⏳ cooldown
+        # cooldown
         if time.time() - last_signal_time < 1800:
             time.sleep(60)
             continue
 
-        # 🟢 BUY
-        if (current_price > resistance * 1.001 and rsi > 55 and current_price > ema and last_signal != "BUY"):
-            target = current_price * 1.02
-            stoploss = current_price * 0.99
+        # 🟢 BREAKOUT BUY
+        if current_price > resistance * 1.001 and rsi > 55 and current_price > ema:
+            send_message(f"🚀 BREAKOUT BUY\nPrice: {current_price:.2f}")
+            last_signal = "BUY"
+            last_signal_time = time.time()
 
-            send_message(
-                f"BUY 🚀\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}\nEMA: {ema:.2f}\nTarget: {target:.2f}\nSL: {stoploss:.2f}"
-            )
+        # 🟡 PULLBACK BUY (🔥 BEST)
+        elif current_price > ema and rsi < 50 and last_signal != "BUY":
+            send_message(f"📈 PULLBACK BUY\nPrice: {current_price:.2f}")
             last_signal = "BUY"
             last_signal_time = time.time()
 
         # 🔴 SELL
-        elif (current_price < support * 0.999 and rsi < 45 and current_price < ema and last_signal != "SELL"):
-            target = current_price * 0.98
-            stoploss = current_price * 1.01
-
-            send_message(
-                f"SELL 🔻\nPrice: {current_price:.2f}\nRSI: {rsi:.2f}\nEMA: {ema:.2f}\nTarget: {target:.2f}\nSL: {stoploss:.2f}"
-            )
+        elif current_price < support * 0.999 and rsi < 45 and current_price < ema:
+            send_message(f"🔻 SELL\nPrice: {current_price:.2f}")
             last_signal = "SELL"
             last_signal_time = time.time()
 
-        time.sleep(60)
+        time.sleep(600)
 
     except Exception as e:
         print("Error:", e)
