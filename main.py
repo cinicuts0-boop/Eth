@@ -54,9 +54,8 @@ def get_signal():
             return None
 
         last_signal = signal
-
-        if signal == "BUY":
-            msg = f"""
+if signal == "BUY":
+    msg = f"""
 🟢 BUY SIGNAL — ETH
 
 Entry : {price:.2f}
@@ -66,8 +65,8 @@ SL    : {price-10:.2f}
 
 RSI   : {rsi_val:.2f}
 """
-        else:
-            msg = f"""
+else:
+    msg = f"""
 🔴 SELL SIGNAL — ETH
 
 Entry : {price:.2f}
@@ -77,7 +76,6 @@ SL    : {price+10:.2f}
 
 RSI   : {rsi_val:.2f}
 """
-
         return msg
 
     except Exception as e:
