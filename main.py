@@ -15,7 +15,8 @@ CHAT_ID = "8007854479"
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
 trade_history = []
@@ -118,6 +119,7 @@ def run_bot():
         try:
             eth_msg = get_signal_for("ETH-USD", "ETH")
             btc_msg = get_signal_for("BTC-USD", "BTC")
+            nifty_msg = get_signal_for("^NSEI", "NIFTY")  # 🇮🇳 NIFTY
 
             update_results()
 
@@ -126,6 +128,9 @@ def run_bot():
 
             if btc_msg:
                 send_telegram("🟡 " + btc_msg)
+
+            if nifty_msg:
+                send_telegram("🇮🇳 " + nifty_msg)
 
             print("Updated...")
 
@@ -158,7 +163,7 @@ def dashboard():
             }}
             .grid {{
                 display: grid;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr 1fr 1fr;
                 gap: 10px;
                 padding: 10px;
             }}
@@ -174,7 +179,7 @@ def dashboard():
 
     <body>
 
-    <h1>🚀 MULTI COIN DASHBOARD</h1>
+    <h1>🚀 MULTI MARKET DASHBOARD</h1>
 
     <div style="padding:10px;">
         <h2>📊 Performance</h2>
@@ -182,15 +187,6 @@ def dashboard():
         <p>Wins: {wins} | Loss: {loss}</p>
         <p>Accuracy: {accuracy}%</p>
         <p>💰 PnL: {pnl}</p>
-    </div>
-
-    <div style="padding:10px;">
-        <h3>📈 Profit Chart</h3>
-        <div style="background:#1e293b; border-radius:10px;">
-            <div style="width:{accuracy}%; background:#22c55e; padding:10px; border-radius:10px;">
-                {accuracy}%
-            </div>
-        </div>
     </div>
 
     <div class="grid">
@@ -207,6 +203,13 @@ def dashboard():
             <p>RSI: {latest_data['BTC']['rsi']}</p>
             <p class="{latest_data['BTC']['signal'].lower()}">{latest_data['BTC']['signal']}</p>
         </div>
+
+        <div class="box">
+            <h2>🇮🇳 NIFTY</h2>
+            <p>{latest_data['NIFTY']['price']}</p>
+            <p>RSI: {latest_data['NIFTY']['rsi']}</p>
+            <p class="{latest_data['NIFTY']['signal'].lower()}">{latest_data['NIFTY']['signal']}</p>
+        </div>
     </div>
 
     <div style="padding:10px;">
@@ -215,6 +218,9 @@ def dashboard():
 
         <h3>📈 BTC Chart</h3>
         <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" width="100%" height="300"></iframe>
+
+        <h3>📈 NIFTY Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:NIFTY&interval=5&theme=dark" width="100%" height="300"></iframe>
     </div>
 
     <h2>📊 Trade History</h2>
