@@ -1,159 +1,308 @@
 
-# 🚀 AUTO STRIKE PRO DASHBOARD + LIVE SIGNAL
-import yfinance as yf
-import pandas as pd
-import ta
-import time
 import requests
-from flask import Flask, render_template_string
-from threading import Thread
+import time
+import yfinance as yf
+import ta
+import os
+from flask import Flask
+import threading
+import datetime
 
-# ==============================
-# 🔧 User Config
+app = Flask(__name__)
+
 TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
 CHAT_ID = "8007854479"
 
-CRUDE_CE_STRIKE = 9900
-CRUDE_PE_STRIKE = 7500
-NIFTY_CE_STRIKE = 22900
-NIFTY_PE_STRIKE = 23000
-# ==============================
+latest_data = {
+    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
+}
 
-# Telegram alert
+trade_history = []
+
+
 def send_telegram(msg):
     try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-        print("📤 Telegram Sent")
     except Exception as e:
-        print("❌ Telegram Error:", e)
+        print("Telegram Error:", e)
 
-# Fetch live price
-def get_price(symbol):
+
+def calculate_stats():
+    total = len(trade_history)
+    wins = sum(1 for t in trade_history if "WIN" in t["result"])
+    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
+
+    pnl = (wins * 10) - (loss * 10)
+    accuracy = (wins / total * 100) if total > 0 else 0
+
+    return total, wins, loss, pnl, round(accuracy, 2)
+
+
+def get_signal_for(symbol, name):
+    global latest_data, trade_history
+
     try:
-        df = yf.download(symbol, period="1d", interval="1m", progress=False)
+        df = yf.download(symbol, period="1d", interval="5m")
+
         if df.empty:
             return None
-        # If multi-index columns
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        price = float(df["Close"].iloc[-1])
-        return price
+
+        close = df['Close']
+        if len(close.shape) > 1:
+            close = close.squeeze()
+
+        rsi = ta.momentum.RSIIndicator(close).rsi()
+        macd_obj = ta.trend.MACD(close)
+
+        macd = macd_obj.macd()
+        macd_signal = macd_obj.macd_signal()
+
+        price = float(close.iloc[-1])
+        rsi_val = float(rsi.iloc[-1])
+        macd_val = float(macd.iloc[-1])
+        macd_sig = float(macd_signal.iloc[-1])
+
+        signal = "WAITING"
+
+        if rsi_val < 35 and macd_val > macd_sig:
+            signal = "BUY"
+        elif rsi_val > 65 and macd_val < macd_sig:
+            signal = "SELL"
+
+        # OPTION TEXT
+        option = ""
+        if name in ["NIFTY", "BANKNIFTY"]:
+            option = "CE 📈" if signal == "BUY" else "PE 📉" if signal == "SELL" else ""
+        elif name == "CRUDE":
+            option = "CALL 📈" if signal == "BUY" else "PUT 📉" if signal == "SELL" else ""
+
+        latest_data[name] = {
+            "price": round(price, 2),
+            "rsi": round(rsi_val, 2),
+            "signal": signal
+        }
+
+        if signal != "WAITING":
+            trade_history.append({
+                "coin": name,
+                "type": signal,
+                "price": round(price, 2),
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "result": "OPEN"
+            })
+
+            return f"{name} → {signal} ({option}) @ {price:.2f}"
+
     except Exception as e:
-        print("❌ Price Error:", e)
-        return None
+        print(name, "error:", e)
 
-# Strategy
-def strategy(price_history, ce_strike, pe_strike):
-    df = pd.DataFrame(price_history, columns=["close"])
-    if len(df) < 14:
-        return None, None, None, None, None
-    df["rsi"] = ta.momentum.RSIIndicator(df["close"]).rsi()
-    df["ema20"] = ta.trend.EMAIndicator(df["close"], window=20).ema_indicator()
-    df["ema50"] = ta.trend.EMAIndicator(df["close"], window=50).ema_indicator()
-    last = df.iloc[-1]
-    price = float(last["close"])
-    rsi = float(last["rsi"])
-    ema20 = float(last["ema20"])
-    ema50 = float(last["ema50"])
+    return None
 
-    signal = None
-    option = None
-    entry = None
 
-    # CE Signal
-    if rsi < 45 and ema20 > ema50:
-        signal = "BUY"
-        option = f"CE {ce_strike}"
-        intrinsic = max(0, price - ce_strike)
-        entry = max(50, intrinsic + price*0.02)
-    # PE Signal
-    elif rsi > 55 and ema20 < ema50:
-        signal = "BUY"
-        option = f"PE {pe_strike}"
-        intrinsic = max(0, pe_strike - price)
-        entry = max(50, intrinsic + price*0.02)
+def update_results():
+    for trade in trade_history:
+        if trade["result"] == "OPEN":
+            current_price = latest_data[trade["coin"]]["price"]
 
-    return signal, option, price, rsi, entry
+            if trade["type"] == "BUY":
+                if current_price > trade["price"] + 10:
+                    trade["result"] = "WIN ✅"
+                elif current_price < trade["price"] - 10:
+                    trade["result"] = "LOSS ❌"
 
-# Flask dashboard
-app = Flask(__name__)
-signal_log = []
+            elif trade["type"] == "SELL":
+                if current_price < trade["price"] - 10:
+                    trade["result"] = "WIN ✅"
+                elif current_price > trade["price"] + 10:
+                    trade["result"] = "LOSS ❌"
 
+
+def run_bot():
+    while True:
+        try:
+            get_signal_for("ETH-USD", "ETH")
+            get_signal_for("BTC-USD", "BTC")
+            get_signal_for("^NSEI", "NIFTY")
+            get_signal_for("^NSEBANK", "BANKNIFTY")
+            get_signal_for("CL=F", "CRUDE")
+
+            update_results()
+            print("Updated...")
+            time.sleep(300)
+
+        except Exception as e:
+            print("Error:", e)
+            time.sleep(60)
+
+
+# 🔥 HOME PAGE
 @app.route("/")
 def dashboard():
-    html = """
+    cards = ""
+    for coin, data in latest_data.items():
+        cards += f"""
+        <a href="/coin/{coin}">
+            <div class="box">
+                <h2>{coin}</h2>
+                <p>{data['price']}</p>
+                <p class="{data['signal'].lower()}">{data['signal']}</p>
+            </div>
+        </a>
+        """
+
+    return f"""
     <html>
-    <head><title>AUTO STRIKE PRO DASHBOARD</title></head>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+
+            h1 {{
+                color: #FFD700;
+            }}
+
+            .grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 12px;
+                padding: 12px;
+            }}
+
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+                box-shadow: 0 0 10px rgba(255,215,0,0.2);
+                transition: 0.3s;
+            }}
+
+            .box:hover {{
+                transform: scale(1.05);
+            }}
+
+            p {{
+                color: #FFD700;
+            }}
+
+            .buy {{ color: #22c55e; }}
+            .sell {{ color: #ef4444; }}
+
+            a {{
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+
     <body>
-    <h2>🚀 AUTO STRIKE PRO DASHBOARD</h2>
-    <table border="1" cellpadding="5">
-    <tr><th>Symbol</th><th>Price</th><th>RSI</th><th>Signal</th><th>Option</th><th>Entry</th></tr>
-    {% for s in signals %}
-    <tr>
-        <td>{{ s['symbol'] }}</td>
-        <td>{{ s['price'] }}</td>
-        <td>{{ s['rsi'] }}</td>
-        <td>{{ s['signal'] }}</td>
-        <td>{{ s['option'] }}</td>
-        <td>{{ s['entry'] }}</td>
-    </tr>
-    {% endfor %}
-    </table>
+
+    <h1>🚀 MARKET WATCH</h1>
+
+    <div class="grid">
+        {cards}
+    </div>
+
     </body>
     </html>
     """
-    return render_template_string(html, signals=signal_log[-10:])
 
-# Bot loop
-def run_bot():
-    symbols = [("CL=F", CRUDE_CE_STRIKE, CRUDE_PE_STRIKE),
-               ("^NSEI", NIFTY_CE_STRIKE, NIFTY_PE_STRIKE)]
-    last_signal_record = {}
-    price_histories = {sym[0]: [] for sym in symbols}
 
-    while True:
-        for symbol, ce_strike, pe_strike in symbols:
-            price = get_price(symbol)
-            if price is None:
-                continue
+# 🔥 DETAIL PAGE
+@app.route("/coin/<name>")
+def coin_detail(name):
+    data = latest_data.get(name, {})
 
-            price_histories[symbol].append(price)
-            if len(price_histories[symbol]) > 100:
-                price_histories[symbol].pop(0)
+    total, wins, loss, pnl, accuracy = calculate_stats()
 
-            signal, option, p, rsi, entry = strategy(price_histories[symbol], ce_strike, pe_strike)
+    history_html = "".join([
+        f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
 
-            signal_info = {
-                "symbol": symbol,
-                "price": round(p,2) if p else "-",
-                "rsi": round(rsi,2) if rsi else "-",
-                "signal": signal or "No Trade",
-                "option": option or "-",
-                "entry": round(entry,2) if entry else "-"
-            }
-            signal_log.append(signal_info)
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
 
-            if signal and last_signal_record.get(symbol) != signal:
-                msg = f"""
-🚀 AUTO STRIKE PRO SIGNAL
+    symbol = chart_map.get(name)
 
-Symbol: {symbol}
-🔔 {signal}
-🎯 {option}
-💰 Price: {round(p,2)}
-💸 Entry: ₹{round(entry,2)}
-📈 RSI: {round(rsi,2)}
-"""
-                send_telegram(msg)
-                last_signal_record[symbol] = signal
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
 
-            print(signal_info)
+            .box {{
+                background: #1e293b;
+                padding: 15px;
+                border-radius: 15px;
+                margin: 10px;
+                border: 1px solid #FFD700;
+            }}
 
-        time.sleep(60)
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+
+    <body>
+
+    <h1>{name} DETAILS</h1>
+
+    <div class="box">
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}%</p>
+        <p>PnL: {pnl}</p>
+    </div>
+
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
+        width="100%" height="300"></iframe>
+    </div>
+
+    <div class="box">
+        <h3>📜 Trade History</h3>
+        {history_html}
+    </div>
+
+    <br>
+    <a href="/">⬅ Back</a>
+
+    </body>
+    </html>
+    """
+
 
 if __name__ == "__main__":
-    # Run dashboard
-    Thread(target=lambda: app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)).start()
-    # Run bot
-    run_bot()
+    threading.Thread(target=run_bot).start()
+
+    PORT = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=PORT)
