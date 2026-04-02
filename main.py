@@ -1,21 +1,21 @@
-
 import requests
 import time
 import yfinance as yf
 import ta
 import os
 from flask import Flask
+import threading
 
 app = Flask(__name__)
 
 TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
 CHAT_ID = "8007854479"
 
-last_signal = None
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
+
 
 def send_telegram(msg):
     try:
@@ -35,6 +35,7 @@ def get_signal_for(symbol, name):
             return None
 
         close = df['Close']
+
         if len(close.shape) > 1:
             close = close.squeeze()
 
@@ -66,110 +67,9 @@ def get_signal_for(symbol, name):
             return f"{name} → {signal} @ {price:.2f}"
 
     except Exception as e:
-        print(f"{name} error:", e)
+        print(name, "error:", e)
 
     return None
-
-        last_signal = signal
-
-        msg = f"""
-🚨 ETH SIGNAL
-
-Price : {price:.2f}
-RSI   : {rsi_val:.2f}
-
-Signal: {signal}
-"""
-
-        return msg
-
-    except Exception as e:
-        return f"❌ Error: {e}"
-
-
-# 🌐 DASHBOARD ROUTE
-@app.route("/")
-def dashboard():
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: white;
-                margin: 0;
-                text-align: center;
-            }}
-
-            h1 {{
-                padding: 15px;
-            }}
-
-            .grid {{
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-                padding: 10px;
-            }}
-
-            .box {{
-                background: #1e293b;
-                padding: 15px;
-                border-radius: 10px;
-            }}
-
-            .buy {{ color: #22c55e; }}
-            .sell {{ color: #ef4444; }}
-
-            iframe {{
-                width: 100%;
-                height: 250px;
-                margin-top: 10px;
-                border-radius: 10px;
-            }}
-        </style>
-    </head>
-
-    <body>
-
-        <h1>🚀 MULTI COIN DASHBOARD</h1>
-
-        <div class="grid">
-
-            <div class="box">
-                <h2>🟢 ETH</h2>
-                <p>💰 {latest_data['ETH']['price']}</p>
-                <p>RSI: {latest_data['ETH']['rsi']}</p>
-                <p class="{latest_data['ETH']['signal'].lower()}">
-                    {latest_data['ETH']['signal']}
-                </p>
-            </div>
-
-            <div class="box">
-                <h2>🟡 BTC</h2>
-                <p>💰 {latest_data['BTC']['price']}</p>
-                <p>RSI: {latest_data['BTC']['rsi']}</p>
-                <p class="{latest_data['BTC']['signal'].lower()}">
-                    {latest_data['BTC']['signal']}
-                </p>
-            </div>
-
-        </div>
-
-        <div style="padding:10px;">
-            <h3>📈 ETH Chart</h3>
-            <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark"></iframe>
-
-            <h3>📈 BTC Chart</h3>
-            <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark"></iframe>
-        </div>
-
-    </body>
-    </html>
-    """
-
 
 # 🤖 BOT LOOP
 def run_bot():
@@ -184,7 +84,7 @@ def run_bot():
             if btc_msg:
                 send_telegram("🟡 " + btc_msg)
 
-            print("Updated all coins...")
+            print("Updated...")
 
             time.sleep(300)
 
@@ -192,6 +92,59 @@ def run_bot():
             print("Error:", e)
             time.sleep(60)
 
+# 🌐 DASHBOARD ROUTE
+@app.route("/")
+def dashboard():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: white;
+                text-align: center;
+            }}
+            .grid {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                padding: 10px;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 15px;
+                border-radius: 10px;
+            }}
+            .buy {{ color: #22c55e; }}
+            .sell {{ color: #ef4444; }}
+        </style>
+    </head>
+
+    <body>
+
+    <h1>🚀 MULTI COIN DASHBOARD</h1>
+
+    <div class="grid">
+        <div class="box">
+            <h2>ETH</h2>
+            <p>{latest_data['ETH']['price']}</p>
+            <p>RSI: {latest_data['ETH']['rsi']}</p>
+            <p class="{latest_data['ETH']['signal'].lower()}">{latest_data['ETH']['signal']}</p>
+        </div>
+
+        <div class="box">
+            <h2>BTC</h2>
+            <p>{latest_data['BTC']['price']}</p>
+            <p>RSI: {latest_data['BTC']['rsi']}</p>
+            <p class="{latest_data['BTC']['signal'].lower()}">{latest_data['BTC']['signal']}</p>
+        </div>
+    </div>
+
+    </body>
+    </html>
+    """
 
 # 🚀 RUN BOTH
 if __name__ == "__main__":
