@@ -26,7 +26,6 @@ def send_telegram(msg):
 
 def get_signal():
     global last_signal
-    return "✅ Bot Working Fine 🚀"
 
     try:
         df = yf.download("ETH-USD", period="1d", interval="5m")
