@@ -29,8 +29,8 @@ def send_telegram(msg):
 def get_signal():
     global last_signal, latest_data
     latest_data["price"] = 1234
-latest_data["rsi"] = 50
-latest_data["signal"] = "TEST"
+    latest_data["rsi"] = 50
+    latest_data["signal"] = "TEST"
 
     try:
         df = yf.download("ETH-USD", period="1d", interval="5m")
