@@ -1,3 +1,4 @@
+
 import requests
 import time
 import yfinance as yf
@@ -71,7 +72,7 @@ def get_signal_for(symbol, name):
 
     return None
 
-# 🤖 BOT LOOP
+
 def run_bot():
     while True:
         try:
@@ -92,7 +93,7 @@ def run_bot():
             print("Error:", e)
             time.sleep(60)
 
-# 🌐 DASHBOARD ROUTE
+
 @app.route("/")
 def dashboard():
     return f"""
@@ -146,14 +147,9 @@ def dashboard():
     </html>
     """
 
-# 🚀 RUN BOTH
-if __name__ == "__main__":
-    import threading
 
-    # 🤖 Bot backgroundல run ஆகும்
+if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
 
-    # 🌐 Flask dashboard run ஆகும்
-    import os
     PORT = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=PORT)
