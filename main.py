@@ -74,6 +74,7 @@ def get_signal_for(symbol, name):
         elif rsi_val > 65 and macd_val < macd_sig:
             signal = "SELL"
 
+        # OPTION TEXT
         option = ""
         if name in ["NIFTY", "BANKNIFTY"]:
             option = "CE 📈" if signal == "BUY" else "PE 📉" if signal == "SELL" else ""
@@ -139,13 +140,13 @@ def run_bot():
             time.sleep(60)
 
 
-# 🔥 HOME PAGE (ONLY PRICE + CLICK)
+# 🔥 HOME PAGE
 @app.route("/")
 def dashboard():
     cards = ""
     for coin, data in latest_data.items():
         cards += f"""
-        <a href="/coin/{coin}" style="text-decoration:none;">
+        <a href="/coin/{coin}">
             <div class="box">
                 <h2>{coin}</h2>
                 <p>{data['price']}</p>
@@ -162,22 +163,47 @@ def dashboard():
             body {{
                 font-family: Arial;
                 background: #0f172a;
-                color: white;
+                color: #FFD700;
                 text-align: center;
             }}
+
+            h1 {{
+                color: #FFD700;
+            }}
+
             .grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                gap: 10px;
-                padding: 10px;
+                gap: 12px;
+                padding: 12px;
             }}
+
             .box {{
                 background: #1e293b;
                 padding: 20px;
-                border-radius: 10px;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+                box-shadow: 0 0 10px rgba(255,215,0,0.2);
+                transition: 0.3s;
+            }}
+
+            .box:hover {{
+                transform: scale(1.05);
+            }}
+
+            p {{
+                color: #FFD700;
+            }}
+
+            .buy {{ color: #22c55e; }}
+            .sell {{ color: #ef4444; }}
+
+            a {{
+                text-decoration: none;
             }}
         </style>
     </head>
+
     <body>
 
     <h1>🚀 MARKET WATCH</h1>
@@ -213,72 +239,66 @@ def coin_detail(name):
 
     symbol = chart_map.get(name)
 
-return f"""
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body {{
-    font-family: Arial;
-    background: #0f172a;
-    color: #FFD700;
-    text-align: center;
-}}
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
 
-h1 {{
-    color: #FFD700;
-}}
+            .box {{
+                background: #1e293b;
+                padding: 15px;
+                border-radius: 15px;
+                margin: 10px;
+                border: 1px solid #FFD700;
+            }}
 
-.grid {{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    padding: 12px;
-}}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
 
-.box {{
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 15px;
-    border: 1px solid #FFD700;
-    box-shadow: 0 0 10px rgba(255,215,0,0.2);
-    transition: 0.3s;
-}}
+    <body>
 
-.box:hover {{
-    transform: scale(1.05);
-}}
+    <h1>{name} DETAILS</h1>
 
-p {{
-    color: #FFD700;
-    font-size: 16px;
-}}
+    <div class="box">
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
 
-.buy {{
-    color: #22c55e;
-}}
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}%</p>
+        <p>PnL: {pnl}</p>
+    </div>
 
-.sell {{
-    color: #ef4444;
-}}
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
+        width="100%" height="300"></iframe>
+    </div>
 
-a {{
-    text-decoration: none;
-}}
-</style>
-</head>
+    <div class="box">
+        <h3>📜 Trade History</h3>
+        {history_html}
+    </div>
 
-<body>
+    <br>
+    <a href="/">⬅ Back</a>
 
-<h1>🚀 MARKET WATCH</h1>
-
-<div class="grid">
-{cards}
-</div>
-
-</body>
-</html>
-"""
+    </body>
+    </html>
+    """
 
 
 if __name__ == "__main__":
