@@ -1,3 +1,4 @@
+
 import requests
 import time
 import yfinance as yf
@@ -17,7 +18,6 @@ latest_data = {
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
-# 🔥 Trade history
 trade_history = []
 
 
@@ -27,6 +27,17 @@ def send_telegram(msg):
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
     except Exception as e:
         print("Telegram Error:", e)
+
+
+def calculate_stats():
+    total = len(trade_history)
+    wins = sum(1 for t in trade_history if "WIN" in t["result"])
+    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
+
+    pnl = (wins * 10) - (loss * 10)
+    accuracy = (wins / total * 100) if total > 0 else 0
+
+    return total, wins, loss, pnl, round(accuracy, 2)
 
 
 def get_signal_for(symbol, name):
@@ -66,7 +77,6 @@ def get_signal_for(symbol, name):
             "signal": signal
         }
 
-        # 🔥 Save trade
         if signal != "WAITING":
             trade = {
                 "coin": name,
@@ -85,7 +95,6 @@ def get_signal_for(symbol, name):
     return None
 
 
-# 🔥 Update WIN / LOSS
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
@@ -110,7 +119,7 @@ def run_bot():
             eth_msg = get_signal_for("ETH-USD", "ETH")
             btc_msg = get_signal_for("BTC-USD", "BTC")
 
-            update_results()  # 🔥 update history
+            update_results()
 
             if eth_msg:
                 send_telegram("🟢 " + eth_msg)
@@ -129,6 +138,8 @@ def run_bot():
 
 @app.route("/")
 def dashboard():
+    total, wins, loss, pnl, accuracy = calculate_stats()
+
     history_html = "".join([
         f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
         for t in trade_history[-10:]
@@ -164,6 +175,23 @@ def dashboard():
     <body>
 
     <h1>🚀 MULTI COIN DASHBOARD</h1>
+
+    <div style="padding:10px;">
+        <h2>📊 Performance</h2>
+        <p>Total Trades: {total}</p>
+        <p>Wins: {wins} | Loss: {loss}</p>
+        <p>Accuracy: {accuracy}%</p>
+        <p>💰 PnL: {pnl}</p>
+    </div>
+
+    <div style="padding:10px;">
+        <h3>📈 Profit Chart</h3>
+        <div style="background:#1e293b; border-radius:10px;">
+            <div style="width:{accuracy}%; background:#22c55e; padding:10px; border-radius:10px;">
+                {accuracy}%
+            </div>
+        </div>
+    </div>
 
     <div class="grid">
         <div class="box">
