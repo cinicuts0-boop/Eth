@@ -90,11 +90,51 @@ Signal: {signal}
 @app.route("/")
 def dashboard():
     return f"""
+    <html>
+    <head>
+        <title>ETH Dashboard</title>
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: white;
+                text-align: center;
+            }}
+            .box {{
+                margin: 20px;
+                padding: 20px;
+                border-radius: 10px;
+                background: #1e293b;
+            }}
+            .buy {{ color: #22c55e; }}
+            .sell {{ color: #ef4444; }}
+        </style>
+    </head>
+    <body>
+
     <h1>🚀 ETH SIGNAL DASHBOARD</h1>
-    <p>Price: {latest_data['price']}</p>
-    <p>RSI: {latest_data['rsi']}</p>
-    <p>Signal: {latest_data['signal']}</p>
-    <p>Status: RUNNING ✅</p>
+
+    <div class="box">
+        <h2>Price: {latest_data['price']}</h2>
+        <h3>RSI: {latest_data['rsi']}</h3>
+        <h3>Signal: <span class="{latest_data['signal'].lower()}">{latest_data['signal']}</span></h3>
+        <p>Status: RUNNING ✅</p>
+    </div>
+
+    <!-- 🔥 LIVE CHART -->
+    <div class="box">
+        <h2>📈 Live ETH Chart</h2>
+
+        <iframe 
+            src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark&style=1&locale=en" 
+            width="100%" 
+            height="400" 
+            frameborder="0">
+        </iframe>
+    </div>
+
+    </body>
+    </html>
     """
 
 
