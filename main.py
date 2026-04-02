@@ -1,3 +1,4 @@
+
 import requests
 import time
 import yfinance as yf
@@ -6,6 +7,8 @@ import os
 
 TOKEN = os.getenv("8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("8007854479")
+
+last_signal = None  # 🚫 duplicate avoid
 
 def send_telegram(msg):
     try:
@@ -16,15 +19,16 @@ def send_telegram(msg):
 
 
 def get_signal():
+    global last_signal
+
     try:
         df = yf.download("ETH-USD", period="1d", interval="5m")
 
         if df.empty:
-            return "⚠️ No data"
+            return None
 
         close = df['Close']
 
-        # 🔥 Convert to 1D
         if len(close.shape) > 1:
             close = close.squeeze()
 
@@ -35,41 +39,74 @@ def get_signal():
         macd = macd_obj.macd()
         macd_signal = macd_obj.macd_signal()
 
-        # 🔥 Get LAST VALUES (IMPORTANT FIX)
-        last_price = float(close.iloc[-1])
-        last_rsi = float(rsi.iloc[-1])
-        last_macd = float(macd.iloc[-1])
-        last_macd_signal = float(macd_signal.iloc[-1])
+        # Last values
+        price = float(close.iloc[-1])
+        rsi_val = float(rsi.iloc[-1])
+        macd_val = float(macd.iloc[-1])
+        macd_sig = float(macd_signal.iloc[-1])
 
-        signal = "⚪ NO SIGNAL"
+        signal = None
 
-        if last_rsi < 30 and last_macd > last_macd_signal:
-            signal = "🟢 STRONG BUY"
+        # 🎯 SIGNAL LOGIC
+        if rsi_val < 30 and macd_val > macd_sig:
+            signal = "BUY"
 
-        elif last_rsi > 70 and last_macd < last_macd_signal:
-            signal = "🔴 STRONG SELL"
+        elif rsi_val > 70 and macd_val < macd_sig:
+            signal = "SELL"
 
-        msg = f"""
-🚨 ETH SIGNAL
+        # 🚫 Duplicate avoid
+        if signal == last_signal or signal is None:
+            return None
 
-Price : {last_price:.2f}
-RSI   : {last_rsi:.2f}
+        last_signal = signal
 
-Signal: {signal}
+        # 🎯 TARGET + SL CALCULATION
+        if signal == "BUY":
+            tp1 = price + 10
+            tp2 = price + 20
+            sl = price - 10
+
+            msg = f"""
+🟢 BUY SIGNAL — ETH
+
+Entry : {price:.2f}
+TP1   : {tp1:.2f}
+TP2   : {tp2:.2f}
+SL    : {sl:.2f}
+
+RSI   : {rsi_val:.2f}
+"""
+
+        elif signal == "SELL":
+            tp1 = price - 10
+            tp2 = price - 20
+            sl = price + 10
+
+            msg = f"""
+🔴 SELL SIGNAL — ETH
+
+Entry : {price:.2f}
+TP1   : {tp1:.2f}
+TP2   : {tp2:.2f}
+SL    : {sl:.2f}
+
+RSI   : {rsi_val:.2f}
 """
 
         return msg
 
     except Exception as e:
-        return f"❌ Error in signal: {e}"
+        return f"❌ Error: {e}"
 
 
 # 🔥 LOOP
 while True:
     try:
         msg = get_signal()
-        send_telegram(msg)
-        print("Sent:", msg)
+
+        if msg:
+            send_telegram(msg)
+            print("Sent:", msg)
 
         time.sleep(300)
 
