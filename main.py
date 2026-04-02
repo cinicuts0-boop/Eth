@@ -1,4 +1,3 @@
-
 import requests
 import time
 import yfinance as yf
@@ -20,42 +19,41 @@ def get_signal():
     try:
         df = yf.download("ETH-USD", period="1d", interval="5m")
 
-        # 🔥 EMPTY DATA CHECK
         if df.empty:
-            return "⚠️ No data received"
+            return "⚠️ No data"
 
         close = df['Close']
 
-        # 🔥 FIX: Convert to 1D
+        # 🔥 Convert to 1D
         if len(close.shape) > 1:
             close = close.squeeze()
 
-        # 🔥 Remove NaN values
-        df = df.dropna()
-
         # Indicators
-        df['rsi'] = ta.momentum.RSIIndicator(close).rsi()
+        rsi = ta.momentum.RSIIndicator(close).rsi()
+        macd_obj = ta.trend.MACD(close)
 
-        macd = ta.trend.MACD(close)
-        df['macd'] = macd.macd()
-        df['macd_signal'] = macd.macd_signal()
+        macd = macd_obj.macd()
+        macd_signal = macd_obj.macd_signal()
 
-        last = df.iloc[-1]
+        # 🔥 Get LAST VALUES (IMPORTANT FIX)
+        last_price = float(close.iloc[-1])
+        last_rsi = float(rsi.iloc[-1])
+        last_macd = float(macd.iloc[-1])
+        last_macd_signal = float(macd_signal.iloc[-1])
 
         signal = "⚪ NO SIGNAL"
 
-        # 🔥 STRONG LOGIC
-        if last['rsi'] < 30 and last['macd'] > last['macd_signal']:
+        if last_rsi < 30 and last_macd > last_macd_signal:
             signal = "🟢 STRONG BUY"
 
-        elif last['rsi'] > 70 and last['macd'] < last['macd_signal']:
+        elif last_rsi > 70 and last_macd < last_macd_signal:
             signal = "🔴 STRONG SELL"
 
         msg = f"""
 🚨 ETH SIGNAL
 
-Price : {last['Close']:.2f}
-RSI   : {last['rsi']:.2f}
+Price : {last_price:.2f}
+RSI   : {last_rsi:.2f}
 
 Signal: {signal}
 """
@@ -66,14 +64,14 @@ Signal: {signal}
         return f"❌ Error in signal: {e}"
 
 
-# 🔥 MAIN LOOP
+# 🔥 LOOP
 while True:
     try:
         msg = get_signal()
         send_telegram(msg)
         print("Sent:", msg)
 
-        time.sleep(300)  # 5 minutes
+        time.sleep(300)
 
     except Exception as e:
         print("Loop Error:", e)
