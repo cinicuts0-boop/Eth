@@ -118,7 +118,12 @@ def run_bot():
 
 # 🚀 RUN BOTH
 if __name__ == "__main__":
-    import os
+    import threading
 
-PORT = int(os.environ.get("PORT", 8080))
-app.run(host="0.0.0.0", port=PORT)
+    # 🤖 Bot backgroundல run ஆகும்
+    threading.Thread(target=run_bot).start()
+
+    # 🌐 Flask dashboard run ஆகும்
+    import os
+    PORT = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=PORT)
