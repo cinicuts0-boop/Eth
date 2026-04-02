@@ -21,6 +21,8 @@ def send_telegram(msg):
 def get_signal():
     global last_signal
 
+    return "✅ Bot Working Fine 🚀"
+
     try:
         df = yf.download("ETH-USD", period="1d", interval="5m")
 
@@ -48,10 +50,10 @@ def get_signal():
         signal = None
 
         # 🎯 SIGNAL LOGIC
-        if rsi_val < 30 and macd_val > macd_sig:
+        if rsi_val < 50 and macd_val > macd_sig:
             signal = "BUY"
 
-        elif rsi_val > 70 and macd_val < macd_sig:
+        elif rsi_val > 50 and macd_val < macd_sig:
             signal = "SELL"
 
         # 🚫 Duplicate avoid
@@ -104,9 +106,11 @@ while True:
     try:
         msg = get_signal()
 
-        if msg:
-            send_telegram(msg)
-            print("Sent:", msg)
+       if msg:
+    send_telegram(msg)
+    print("Sent:", msg)
+else:
+    print("No signal now...")
 
         time.sleep(300)
 
