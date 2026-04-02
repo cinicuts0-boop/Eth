@@ -206,7 +206,7 @@ def dashboard():
 
     <body>
 
-    <h1>🚀 MARKET WATCH</h1>
+    <h1>🚀 Mani Money Mindset </h1>
 
     <div class="grid">
         {cards}
