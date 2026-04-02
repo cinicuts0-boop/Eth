@@ -213,58 +213,72 @@ def coin_detail(name):
 
     symbol = chart_map.get(name)
 
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: white;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 15px;
-                border-radius: 10px;
-                margin: 10px;
-            }}
-        </style>
-    </head>
-    <body>
+return f"""
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {{
+    font-family: Arial;
+    background: #0f172a;
+    color: #FFD700;
+    text-align: center;
+}}
 
-    <h1>{name} DETAILS</h1>
+h1 {{
+    color: #FFD700;
+}}
 
-    <div class="box">
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
-    </div>
+.grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 12px;
+}}
 
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
-    </div>
+.box {{
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid #FFD700;
+    box-shadow: 0 0 10px rgba(255,215,0,0.2);
+    transition: 0.3s;
+}}
 
-    <div class="box">
-        <h3>📈 Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
-        width="100%" height="300"></iframe>
-    </div>
+.box:hover {{
+    transform: scale(1.05);
+}}
 
-    <div class="box">
-        <h3>📜 Trade History</h3>
-        {history_html}
-    </div>
+p {{
+    color: #FFD700;
+    font-size: 16px;
+}}
 
-    <br>
-    <a href="/" style="color:white;">⬅ Back</a>
+.buy {{
+    color: #22c55e;
+}}
 
-    </body>
-    </html>
-    """
+.sell {{
+    color: #ef4444;
+}}
+
+a {{
+    text-decoration: none;
+}}
+</style>
+</head>
+
+<body>
+
+<h1>🚀 MARKET WATCH</h1>
+
+<div class="grid">
+{cards}
+</div>
+
+</body>
+</html>
+"""
 
 
 if __name__ == "__main__":
