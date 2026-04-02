@@ -35,29 +35,31 @@ def get_signal():
 
         close = df['Close']
 
-        # 🔥 Fix 1D issue
         if len(close.shape) > 1:
             close = close.squeeze()
 
-        # Indicators
+        # 🔥 INDICATORS
         rsi = ta.momentum.RSIIndicator(close).rsi()
         macd_obj = ta.trend.MACD(close)
-
         macd = macd_obj.macd()
         macd_signal = macd_obj.macd_signal()
+        ema = ta.trend.EMAIndicator(close, window=200).ema_indicator()
 
-        # Last values
+        # LAST VALUES
         price = float(close.iloc[-1])
         rsi_val = float(rsi.iloc[-1])
         macd_val = float(macd.iloc[-1])
         macd_sig = float(macd_signal.iloc[-1])
+        ema_val = float(ema.iloc[-1])
 
         signal = None
 
-        # 🔥 Fast signal logic (test mode)
-        if rsi_val < 50 and macd_val > macd_sig:
+        # 🟢 BUY (STRONG)
+        if price > ema_val and rsi_val < 35 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi_val > 50 and macd_val < macd_sig:
+
+        # 🔴 SELL (STRONG)
+        elif price < ema_val and rsi_val > 65 and macd_val < macd_sig:
             signal = "SELL"
 
         # 🚫 Duplicate avoid
@@ -66,28 +68,39 @@ def get_signal():
 
         last_signal = signal
 
-        # 🎯 MESSAGE FORMAT (FIXED)
+        # 🎯 SMART TP / SL
         if signal == "BUY":
+            tp1 = price + 15
+            tp2 = price + 30
+            sl = price - 12
+
             msg = f"""
-🟢 BUY SIGNAL — ETH
+🟢 STRONG BUY — ETH
 
 Entry : {price:.2f}
-TP1   : {price+10:.2f}
-TP2   : {price+20:.2f}
-SL    : {price-10:.2f}
+TP1   : {tp1:.2f}
+TP2   : {tp2:.2f}
+SL    : {sl:.2f}
 
 RSI   : {rsi_val:.2f}
+Trend : UP 📈
 """
+
         else:
+            tp1 = price - 15
+            tp2 = price - 30
+            sl = price + 12
+
             msg = f"""
-🔴 SELL SIGNAL — ETH
+🔴 STRONG SELL — ETH
 
 Entry : {price:.2f}
-TP1   : {price-10:.2f}
-TP2   : {price-20:.2f}
-SL    : {price+10:.2f}
+TP1   : {tp1:.2f}
+TP2   : {tp2:.2f}
+SL    : {sl:.2f}
 
 RSI   : {rsi_val:.2f}
+Trend : DOWN 📉
 """
 
         return msg
