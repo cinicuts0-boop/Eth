@@ -45,9 +45,9 @@ def get_signal():
 
         signal = None
 
-        if rsi_val < 30 and macd_val > macd_sig:
+        if rsi_val < 50 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi_val > 70 and macd_val < macd_sig:
+        elif rsi_val > 50 and macd_val < macd_sig:
             signal = "SELL"
 
         if signal == last_signal or signal is None:
