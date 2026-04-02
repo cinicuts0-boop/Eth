@@ -93,45 +93,84 @@ def dashboard():
     <html>
     <head>
         <title>ETH Dashboard</title>
+
+        <!-- 📱 Mobile Responsive -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
         <style>
             body {{
                 font-family: Arial;
                 background: #0f172a;
                 color: white;
+                margin: 0;
+                padding: 0;
                 text-align: center;
             }}
-            .box {{
-                margin: 20px;
-                padding: 20px;
-                border-radius: 10px;
-                background: #1e293b;
+
+            h1 {{
+                padding: 15px;
+                font-size: 20px;
             }}
-            .buy {{ color: #22c55e; }}
-            .sell {{ color: #ef4444; }}
+
+            .container {{
+                padding: 10px;
+            }}
+
+            .box {{
+                background: #1e293b;
+                padding: 15px;
+                margin-bottom: 15px;
+                border-radius: 12px;
+            }}
+
+            .price {{
+                font-size: 22px;
+                font-weight: bold;
+            }}
+
+            .buy {{
+                color: #22c55e;
+                font-weight: bold;
+            }}
+
+            .sell {{
+                color: #ef4444;
+                font-weight: bold;
+            }}
+
+            iframe {{
+                width: 100%;
+                height: 300px;
+                border-radius: 10px;
+            }}
         </style>
     </head>
+
     <body>
 
-    <h1>🚀 ETH SIGNAL DASHBOARD</h1>
+        <h1>🚀 ETH DASHBOARD</h1>
 
-    <div class="box">
-        <h2>Price: {latest_data['price']}</h2>
-        <h3>RSI: {latest_data['rsi']}</h3>
-        <h3>Signal: <span class="{latest_data['signal'].lower()}">{latest_data['signal']}</span></h3>
-        <p>Status: RUNNING ✅</p>
-    </div>
+        <div class="container">
 
-    <!-- 🔥 LIVE CHART -->
-    <div class="box">
-        <h2>📈 Live ETH Chart</h2>
+            <div class="box">
+                <div class="price">💰 {latest_data['price']}</div>
+                <p>RSI: {latest_data['rsi']}</p>
+                <p>Signal: 
+                    <span class="{latest_data['signal'].lower()}">
+                        {latest_data['signal']}
+                    </span>
+                </p>
+                <p>🟢 Status: RUNNING</p>
+            </div>
 
-        <iframe 
-            src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark&style=1&locale=en" 
-            width="100%" 
-            height="400" 
-            frameborder="0">
-        </iframe>
-    </div>
+            <div class="box">
+                <h3>📈 Live Chart</h3>
+                <iframe 
+                    src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark">
+                </iframe>
+            </div>
+
+        </div>
 
     </body>
     </html>
