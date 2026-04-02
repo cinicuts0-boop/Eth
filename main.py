@@ -13,7 +13,13 @@ last_signal = None
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+        res = requests.post(url, data={
+            "chat_id": CHAT_ID,
+            "text": msg
+        })
+
+        print("Telegram Response:", res.text)
+
     except Exception as e:
         print("Telegram Error:", e)
 
