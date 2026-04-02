@@ -141,6 +141,23 @@ def dashboard():
             <p>RSI: {latest_data['BTC']['rsi']}</p>
             <p class="{latest_data['BTC']['signal'].lower()}">{latest_data['BTC']['signal']}</p>
         </div>
+        <div style="padding:10px;">
+
+    <h3>📈 ETH Chart</h3>
+    <iframe 
+        src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" 
+        width="100%" 
+        height="300">
+    </iframe>
+
+    <h3>📈 BTC Chart</h3>
+    <iframe 
+        src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" 
+        width="100%" 
+        height="300">
+    </iframe>
+
+</div>
     </div>
 
     </body>
