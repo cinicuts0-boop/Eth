@@ -17,7 +17,8 @@ latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"}
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
 trade_history = []
@@ -73,12 +74,18 @@ def get_signal_for(symbol, name):
         elif rsi_val > 65 and macd_val < macd_sig:
             signal = "SELL"
 
-        # 🔥 OPTION LOGIC
+        # 🔥 SMART OPTION LOGIC
         option = ""
-        if signal == "BUY":
-            option = "CE 📈"
-        elif signal == "SELL":
-            option = "PE 📉"
+        if name in ["NIFTY", "BANKNIFTY"]:
+            if signal == "BUY":
+                option = "CE 📈"
+            elif signal == "SELL":
+                option = "PE 📉"
+        elif name == "CRUDE":
+            if signal == "BUY":
+                option = "CALL 📈"
+            elif signal == "SELL":
+                option = "PUT 📉"
 
         latest_data[name] = {
             "price": round(price, 2),
@@ -129,6 +136,7 @@ def run_bot():
             btc_msg = get_signal_for("BTC-USD", "BTC")
             nifty_msg = get_signal_for("^NSEI", "NIFTY")
             bank_msg = get_signal_for("^NSEBANK", "BANKNIFTY")
+            crude_msg = get_signal_for("CL=F", "CRUDE")  # 🛢️
 
             update_results()
 
@@ -143,6 +151,9 @@ def run_bot():
 
             if bank_msg:
                 send_telegram("🏦 " + bank_msg)
+
+            if crude_msg:
+                send_telegram("🛢️ " + crude_msg)
 
             print("Updated...")
 
@@ -175,7 +186,7 @@ def dashboard():
             }}
             .grid {{
                 display: grid;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
                 gap: 10px;
                 padding: 10px;
             }}
@@ -191,7 +202,7 @@ def dashboard():
 
     <body>
 
-    <h1>🚀 PRO TRADING DASHBOARD</h1>
+    <h1>🚀 Mani Money Mindset DASHBOARD</h1>
 
     <div style="padding:10px;">
         <h2>📊 Performance</h2>
@@ -202,42 +213,23 @@ def dashboard():
     </div>
 
     <div class="grid">
+        {"".join([f'''
         <div class="box">
-            <h2>ETH</h2>
-            <p>{latest_data['ETH']['price']}</p>
-            <p>RSI: {latest_data['ETH']['rsi']}</p>
-            <p class="{latest_data['ETH']['signal'].lower()}">{latest_data['ETH']['signal']}</p>
+            <h2>{coin}</h2>
+            <p>{data['price']}</p>
+            <p>RSI: {data['rsi']}</p>
+            <p class="{data['signal'].lower()}">{data['signal']}</p>
         </div>
-
-        <div class="box">
-            <h2>BTC</h2>
-            <p>{latest_data['BTC']['price']}</p>
-            <p>RSI: {latest_data['BTC']['rsi']}</p>
-            <p class="{latest_data['BTC']['signal'].lower()}">{latest_data['BTC']['signal']}</p>
-        </div>
-
-        <div class="box">
-            <h2>🇮🇳 NIFTY</h2>
-            <p>{latest_data['NIFTY']['price']}</p>
-            <p>RSI: {latest_data['NIFTY']['rsi']}</p>
-            <p class="{latest_data['NIFTY']['signal'].lower()}">{latest_data['NIFTY']['signal']}</p>
-        </div>
-
-        <div class="box">
-            <h2>🏦 BANKNIFTY</h2>
-            <p>{latest_data['BANKNIFTY']['price']}</p>
-            <p>RSI: {latest_data['BANKNIFTY']['rsi']}</p>
-            <p class="{latest_data['BANKNIFTY']['signal'].lower()}">{latest_data['BANKNIFTY']['signal']}</p>
-        </div>
+        ''' for coin, data in latest_data.items()])}
     </div>
 
     <div style="padding:10px;">
         <h3>📈 Charts</h3>
-
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" width="100%" height="250"></iframe>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" width="100%" height="250"></iframe>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:NIFTY&interval=5&theme=dark" width="100%" height="250"></iframe>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:BANKNIFTY&interval=5&theme=dark" width="100%" height="250"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" width="100%" height="200"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" width="100%" height="200"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:NIFTY&interval=5&theme=dark" width="100%" height="200"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:BANKNIFTY&interval=5&theme=dark" width="100%" height="200"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NYMEX:CL1!&interval=5&theme=dark" width="100%" height="200"></iframe>
     </div>
 
     <h2>📊 Trade History</h2>
