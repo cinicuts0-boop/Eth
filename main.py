@@ -16,7 +16,8 @@ CHAT_ID = "8007854479"
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"}
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
 trade_history = []
@@ -72,6 +73,13 @@ def get_signal_for(symbol, name):
         elif rsi_val > 65 and macd_val < macd_sig:
             signal = "SELL"
 
+        # 🔥 OPTION LOGIC
+        option = ""
+        if signal == "BUY":
+            option = "CE 📈"
+        elif signal == "SELL":
+            option = "PE 📉"
+
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi_val, 2),
@@ -88,7 +96,7 @@ def get_signal_for(symbol, name):
             }
             trade_history.append(trade)
 
-            return f"{name} → {signal} @ {price:.2f}"
+            return f"{name} → {signal} ({option}) @ {price:.2f}"
 
     except Exception as e:
         print(name, "error:", e)
@@ -119,7 +127,8 @@ def run_bot():
         try:
             eth_msg = get_signal_for("ETH-USD", "ETH")
             btc_msg = get_signal_for("BTC-USD", "BTC")
-            nifty_msg = get_signal_for("^NSEI", "NIFTY")  # 🇮🇳 NIFTY
+            nifty_msg = get_signal_for("^NSEI", "NIFTY")
+            bank_msg = get_signal_for("^NSEBANK", "BANKNIFTY")
 
             update_results()
 
@@ -131,6 +140,9 @@ def run_bot():
 
             if nifty_msg:
                 send_telegram("🇮🇳 " + nifty_msg)
+
+            if bank_msg:
+                send_telegram("🏦 " + bank_msg)
 
             print("Updated...")
 
@@ -163,7 +175,7 @@ def dashboard():
             }}
             .grid {{
                 display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
+                grid-template-columns: 1fr 1fr;
                 gap: 10px;
                 padding: 10px;
             }}
@@ -179,7 +191,7 @@ def dashboard():
 
     <body>
 
-    <h1>🚀 MULTI MARKET DASHBOARD</h1>
+    <h1>🚀 PRO TRADING DASHBOARD</h1>
 
     <div style="padding:10px;">
         <h2>📊 Performance</h2>
@@ -210,17 +222,22 @@ def dashboard():
             <p>RSI: {latest_data['NIFTY']['rsi']}</p>
             <p class="{latest_data['NIFTY']['signal'].lower()}">{latest_data['NIFTY']['signal']}</p>
         </div>
+
+        <div class="box">
+            <h2>🏦 BANKNIFTY</h2>
+            <p>{latest_data['BANKNIFTY']['price']}</p>
+            <p>RSI: {latest_data['BANKNIFTY']['rsi']}</p>
+            <p class="{latest_data['BANKNIFTY']['signal'].lower()}">{latest_data['BANKNIFTY']['signal']}</p>
+        </div>
     </div>
 
     <div style="padding:10px;">
-        <h3>📈 ETH Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" width="100%" height="300"></iframe>
+        <h3>📈 Charts</h3>
 
-        <h3>📈 BTC Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" width="100%" height="300"></iframe>
-
-        <h3>📈 NIFTY Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:NIFTY&interval=5&theme=dark" width="100%" height="300"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" width="100%" height="250"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" width="100%" height="250"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:NIFTY&interval=5&theme=dark" width="100%" height="250"></iframe>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=NSE:BANKNIFTY&interval=5&theme=dark" width="100%" height="250"></iframe>
     </div>
 
     <h2>📊 Trade History</h2>
