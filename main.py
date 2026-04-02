@@ -5,8 +5,8 @@ import yfinance as yf
 import ta
 import os
 
-TOKEN = os.getenv("8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
-CHAT_ID = os.getenv("8007854479")
+TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
+CHAT_ID = "8007854479"
 
 last_signal = None
 
