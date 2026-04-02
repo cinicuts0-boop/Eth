@@ -29,15 +29,18 @@ def get_signal():
 
         close = df['Close']
 
+        # 🔥 Fix 1D issue
         if len(close.shape) > 1:
             close = close.squeeze()
 
+        # Indicators
         rsi = ta.momentum.RSIIndicator(close).rsi()
         macd_obj = ta.trend.MACD(close)
 
         macd = macd_obj.macd()
         macd_signal = macd_obj.macd_signal()
 
+        # Last values
         price = float(close.iloc[-1])
         rsi_val = float(rsi.iloc[-1])
         macd_val = float(macd.iloc[-1])
@@ -45,17 +48,21 @@ def get_signal():
 
         signal = None
 
+        # 🔥 Fast signal logic (test mode)
         if rsi_val < 50 and macd_val > macd_sig:
             signal = "BUY"
         elif rsi_val > 50 and macd_val < macd_sig:
             signal = "SELL"
 
+        # 🚫 Duplicate avoid
         if signal == last_signal or signal is None:
             return None
 
         last_signal = signal
-if signal == "BUY":
-    msg = f"""
+
+        # 🎯 MESSAGE FORMAT (FIXED)
+        if signal == "BUY":
+            msg = f"""
 🟢 BUY SIGNAL — ETH
 
 Entry : {price:.2f}
@@ -65,8 +72,8 @@ SL    : {price-10:.2f}
 
 RSI   : {rsi_val:.2f}
 """
-else:
-    msg = f"""
+        else:
+            msg = f"""
 🔴 SELL SIGNAL — ETH
 
 Entry : {price:.2f}
@@ -76,6 +83,7 @@ SL    : {price+10:.2f}
 
 RSI   : {rsi_val:.2f}
 """
+
         return msg
 
     except Exception as e:
