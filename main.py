@@ -1,4 +1,3 @@
-
 import requests
 import time
 import yfinance as yf
@@ -6,6 +5,7 @@ import ta
 import os
 from flask import Flask
 import threading
+import datetime
 
 app = Flask(__name__)
 
@@ -17,6 +17,9 @@ latest_data = {
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
+# 🔥 Trade history
+trade_history = []
+
 
 def send_telegram(msg):
     try:
@@ -27,7 +30,7 @@ def send_telegram(msg):
 
 
 def get_signal_for(symbol, name):
-    global latest_data
+    global latest_data, trade_history
 
     try:
         df = yf.download(symbol, period="1d", interval="5m")
@@ -36,7 +39,6 @@ def get_signal_for(symbol, name):
             return None
 
         close = df['Close']
-
         if len(close.shape) > 1:
             close = close.squeeze()
 
@@ -64,7 +66,17 @@ def get_signal_for(symbol, name):
             "signal": signal
         }
 
+        # 🔥 Save trade
         if signal != "WAITING":
+            trade = {
+                "coin": name,
+                "type": signal,
+                "price": round(price, 2),
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "result": "OPEN"
+            }
+            trade_history.append(trade)
+
             return f"{name} → {signal} @ {price:.2f}"
 
     except Exception as e:
@@ -73,11 +85,32 @@ def get_signal_for(symbol, name):
     return None
 
 
+# 🔥 Update WIN / LOSS
+def update_results():
+    for trade in trade_history:
+        if trade["result"] == "OPEN":
+            current_price = latest_data[trade["coin"]]["price"]
+
+            if trade["type"] == "BUY":
+                if current_price > trade["price"] + 10:
+                    trade["result"] = "WIN ✅"
+                elif current_price < trade["price"] - 10:
+                    trade["result"] = "LOSS ❌"
+
+            elif trade["type"] == "SELL":
+                if current_price < trade["price"] - 10:
+                    trade["result"] = "WIN ✅"
+                elif current_price > trade["price"] + 10:
+                    trade["result"] = "LOSS ❌"
+
+
 def run_bot():
     while True:
         try:
             eth_msg = get_signal_for("ETH-USD", "ETH")
             btc_msg = get_signal_for("BTC-USD", "BTC")
+
+            update_results()  # 🔥 update history
 
             if eth_msg:
                 send_telegram("🟢 " + eth_msg)
@@ -96,6 +129,11 @@ def run_bot():
 
 @app.route("/")
 def dashboard():
+    history_html = "".join([
+        f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history[-10:]
+    ])
+
     return f"""
     <html>
     <head>
@@ -141,23 +179,19 @@ def dashboard():
             <p>RSI: {latest_data['BTC']['rsi']}</p>
             <p class="{latest_data['BTC']['signal'].lower()}">{latest_data['BTC']['signal']}</p>
         </div>
-        <div style="padding:10px;">
+    </div>
 
-    <h3>📈 ETH Chart</h3>
-    <iframe 
-        src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" 
-        width="100%" 
-        height="300">
-    </iframe>
+    <div style="padding:10px;">
+        <h3>📈 ETH Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark" width="100%" height="300"></iframe>
 
-    <h3>📈 BTC Chart</h3>
-    <iframe 
-        src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" 
-        width="100%" 
-        height="300">
-    </iframe>
+        <h3>📈 BTC Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark" width="100%" height="300"></iframe>
+    </div>
 
-</div>
+    <h2>📊 Trade History</h2>
+    <div style="padding:10px;">
+        {history_html}
     </div>
 
     </body>
