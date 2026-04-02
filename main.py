@@ -13,9 +13,8 @@ CHAT_ID = "8007854479"
 
 last_signal = None
 latest_data = {
-    "price": 0,
-    "rsi": 0,
-    "signal": "WAITING"
+    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
 def send_telegram(msg):
@@ -26,14 +25,11 @@ def send_telegram(msg):
         print("Telegram Error:", e)
 
 
-def get_signal():
-    global last_signal, latest_data
-    latest_data["price"] = 1234
-    latest_data["rsi"] = 50
-    latest_data["signal"] = "TEST"
+def get_signal_for(symbol, name):
+    global latest_data
 
     try:
-        df = yf.download("ETH-USD", period="1d", interval="5m")
+        df = yf.download(symbol, period="1d", interval="5m")
 
         if df.empty:
             return None
@@ -60,14 +56,19 @@ def get_signal():
         elif rsi_val > 65 and macd_val < macd_sig:
             signal = "SELL"
 
-        latest_data = {
+        latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi_val, 2),
             "signal": signal
         }
 
-        if signal == last_signal or signal == "WAITING":
-            return None
+        if signal != "WAITING":
+            return f"{name} → {signal} @ {price:.2f}"
+
+    except Exception as e:
+        print(f"{name} error:", e)
+
+    return None
 
         last_signal = signal
 
@@ -92,55 +93,40 @@ def dashboard():
     return f"""
     <html>
     <head>
-        <title>ETH Dashboard</title>
-
-        <!-- 📱 Mobile Responsive -->
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
         <style>
             body {{
                 font-family: Arial;
                 background: #0f172a;
                 color: white;
                 margin: 0;
-                padding: 0;
                 text-align: center;
             }}
 
             h1 {{
                 padding: 15px;
-                font-size: 20px;
             }}
 
-            .container {{
+            .grid {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
                 padding: 10px;
             }}
 
             .box {{
                 background: #1e293b;
                 padding: 15px;
-                margin-bottom: 15px;
-                border-radius: 12px;
+                border-radius: 10px;
             }}
 
-            .price {{
-                font-size: 22px;
-                font-weight: bold;
-            }}
-
-            .buy {{
-                color: #22c55e;
-                font-weight: bold;
-            }}
-
-            .sell {{
-                color: #ef4444;
-                font-weight: bold;
-            }}
+            .buy {{ color: #22c55e; }}
+            .sell {{ color: #ef4444; }}
 
             iframe {{
                 width: 100%;
-                height: 300px;
+                height: 250px;
+                margin-top: 10px;
                 border-radius: 10px;
             }}
         </style>
@@ -148,28 +134,36 @@ def dashboard():
 
     <body>
 
-        <h1>🚀 ETH DASHBOARD</h1>
+        <h1>🚀 MULTI COIN DASHBOARD</h1>
 
-        <div class="container">
+        <div class="grid">
 
             <div class="box">
-                <div class="price">💰 {latest_data['price']}</div>
-                <p>RSI: {latest_data['rsi']}</p>
-                <p>Signal: 
-                    <span class="{latest_data['signal'].lower()}">
-                        {latest_data['signal']}
-                    </span>
+                <h2>🟢 ETH</h2>
+                <p>💰 {latest_data['ETH']['price']}</p>
+                <p>RSI: {latest_data['ETH']['rsi']}</p>
+                <p class="{latest_data['ETH']['signal'].lower()}">
+                    {latest_data['ETH']['signal']}
                 </p>
-                <p>🟢 Status: RUNNING</p>
             </div>
 
             <div class="box">
-                <h3>📈 Live Chart</h3>
-                <iframe 
-                    src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark">
-                </iframe>
+                <h2>🟡 BTC</h2>
+                <p>💰 {latest_data['BTC']['price']}</p>
+                <p>RSI: {latest_data['BTC']['rsi']}</p>
+                <p class="{latest_data['BTC']['signal'].lower()}">
+                    {latest_data['BTC']['signal']}
+                </p>
             </div>
 
+        </div>
+
+        <div style="padding:10px;">
+            <h3>📈 ETH Chart</h3>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:ETHUSDT&interval=5&theme=dark"></iframe>
+
+            <h3>📈 BTC Chart</h3>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=5&theme=dark"></iframe>
         </div>
 
     </body>
@@ -181,12 +175,16 @@ def dashboard():
 def run_bot():
     while True:
         try:
-            msg = get_signal()
-            if msg:
-                send_telegram(msg)
-                print("Sent:", msg)
-            else:
-                print("No signal...")
+            eth_msg = get_signal_for("ETH-USD", "ETH")
+            btc_msg = get_signal_for("BTC-USD", "BTC")
+
+            if eth_msg:
+                send_telegram("🟢 " + eth_msg)
+
+            if btc_msg:
+                send_telegram("🟡 " + btc_msg)
+
+            print("Updated all coins...")
 
             time.sleep(300)
 
