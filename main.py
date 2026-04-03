@@ -165,8 +165,8 @@ def common_header():
     <div class="nav">
         <a href="/">Home</a> | 
         <a href="/signals">Signals</a> | 
-        <a href="/rules">Contact</a> | 
-        <a href="/tricks">DMCA</a>
+        <a href="/rules">Rules</a> | 
+        <a href="/tricks">Tricks</a>
     </div>
     """
 
@@ -235,6 +235,87 @@ def dashboard():
     <body>
     {common_header()}
     {cards}
+    </body>
+    </html>
+    """
+
+  # 🔹 RULES PAGE
+@app.route("/rules")
+def rules_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h3>📜 Contact / Rules</h3>
+            <p>For any queries, contact Mani via Telegram or email.</p>
+            <p>All trading signals are educational; trade at your own risk.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+# 🔹 TRICKS / DMCA PAGE
+@app.route("/tricks")
+def tricks_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>{common_header()}
+        <div class="box">
+            <h3>🛡️ DMCA / Tricks</h3>
+            <p>All content on this website is protected. Please respect copyrights.</p>
+            <p>Do not copy or redistribute without permission.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
     </body>
     </html>
     """
