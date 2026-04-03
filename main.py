@@ -23,11 +23,22 @@ latest_data = {
 
 trade_history = []
 
+# 🔥 NEW: Telegram messages store
+telegram_messages = []
+
 # 🔹 TELEGRAM FUNCTION
 def send_telegram(msg):
+    global telegram_messages
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         res = requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+
+        # 🔥 SAVE MESSAGE FOR DASHBOARD
+        telegram_messages.append({
+            "msg": msg,
+            "time": datetime.datetime.now().strftime("%H:%M:%S")
+        })
+
         print("Telegram response:", res.json())
     except Exception as e:
         print("Telegram Error:", e)
@@ -128,6 +139,7 @@ def common_header():
     <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
     <div class="nav">
         <a href="/">Home</a> | 
+        <a href="/signals">Signals</a> |
         <a href="/Rules">Contact Us</a> | 
         <a href="/Tricks">DMCA</a>
     </div>
@@ -145,13 +157,26 @@ def common_header():
         .nav a:hover {{
             color: #22c55e;
         }}
-        @media screen and (max-width: 500px) {{
-            .nav a {{
-                display: block;
-                margin: 8px 0;
-            }}
-        }}
     </style>
+    """
+
+# 🔥 NEW PAGE
+@app.route("/signals")
+def signals_page():
+    msgs = "".join([
+        f"<p>{m['time']} → {m['msg']}</p>"
+        for m in telegram_messages[::-1]
+    ])
+
+    return f"""
+    <html>
+    <body style="background:#0f172a;color:#FFD700;text-align:center;">
+        {common_header()}
+        <h2>📩 Telegram Signals</h2>
+        {msgs if msgs else "<p>No signals yet</p>"}
+        <br><a href="/">⬅ Back</a>
+    </body>
+    </html>
     """
 
 # 🔹 HOME PAGE
@@ -160,207 +185,17 @@ def dashboard():
     cards = ""
     for coin, data in latest_data.items():
         cards += f"""
-        <a href="/coin/{coin}" class="box-link">
-            <div class="box">
+        <a href="/coin/{coin}">
+            <div style="margin:10px;padding:15px;background:#1e293b;border-radius:10px;">
                 <h2>{coin}</h2>
                 <p>{data['price']}</p>
-                <p class="{data['signal'].lower()}">{data['signal']}</p>
+                <p>{data['signal']}</p>
             </div>
         </a>
         """
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                gap: 12px;
-                padding: 12px;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                border: 1px solid #FFD700;
-                box-shadow: 0 0 10px rgba(255,215,0,0.2);
-                transition: 0.3s;
-            }}
-            .box:hover {{ transform: scale(1.05); }}
-            p {{ color: #FFD700; }}
-            .buy {{ color: #22c55e; }}
-            .sell {{ color: #ef4444; }}
-            a.box-link {{ text-decoration: none; }}
-        </style>
-    </head>
-    <body>
-        {common_header()}
-        <div class="grid">{cards}</div>
-    </body>
-    </html>
-    """
-    # 🔹 RULES PAGE
-@app.route("/Rules")
-def rules_page():
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                margin: 10px auto;
-                width: 90%;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>
-        {common_header()}
-        <div class="box">
-            <h3>📜 Contact / Rules</h3>
-            <p>For any queries, contact Mani via Telegram or email.</p>
-            <p>All trading signals are educational; trade at your own risk.</p>
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
-    """
+    return f"<html><body style='background:#0f172a;color:#FFD700;text-align:center;'>{common_header()}{cards}</body></html>"
 
-# 🔹 TRICKS / DMCA PAGE
-@app.route("/Tricks")
-def tricks_page():
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                margin: 10px auto;
-                width: 90%;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>
-        {common_header()}
-        <div class="box">
-            <h3>🛡️ DMCA / Tricks</h3>
-            <p>All content on this website is protected. Please respect copyrights.</p>
-            <p>Do not copy or redistribute without permission.</p>
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
-    """
-
-# 🔹 DETAIL PAGE
-@app.route("/coin/<name>")
-def coin_detail(name):
-    data = latest_data.get(name, {})
-    total, wins, loss, pnl, accuracy = calculate_stats()
-
-    history_html = "".join([
-        f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
-
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
-
-    symbol = chart_map.get(name)
-    timezone = "Asia/Kolkata"
-
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 15px;
-                border-radius: 15px;
-                margin: 10px;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>
-        {common_header()}
-        <div class="box">
-            <p>Price: {data.get('price')}</p>
-            <p>RSI: {data.get('rsi')}</p>
-            <p>Signal: {data.get('signal')}</p>
-        </div>
-        <div class="box">
-            <h3>📊 Performance</h3>
-            <p>Accuracy: {accuracy}%</p>
-            <p>PnL: {pnl}</p>
-        </div>
-        <div class="box">
-            <h3>📈 Chart</h3>
-            <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
-            width="100%" height="300"></iframe>
-        </div>
-        <div class="box">
-            <h3>📜 Trade History</h3>
-            {history_html if history_html else "<p>No trades yet.</p>"}
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
-    """
-
+# 🔹 MAIN
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
     PORT = int(os.environ.get("PORT", 8080))
