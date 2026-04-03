@@ -206,7 +206,84 @@ def dashboard():
     </body>
     </html>
     """
+  # 🔹 CONTACT US PAGE
+@app.route("/Rules")
+def contact_us():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            a {{ color: #FFD700; text-decoration: none; }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                margin: 20px auto;
+                width: 90%;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h2>📜 RULES</h2>
+            <p>ABCD</p>
+            <p>ABCD</p>
+            <p>ABCD</p>
+        </div>
+        <br><a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
 
+# 🔹 DMCA PAGE
+@app.route("/Tricks")
+def dmca():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            a {{ color: #FFD700; text-decoration: none; }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                margin: 20px auto;
+                width: 90%;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h2>📜 TRICKS</h2>
+            <p>ABCD</p>
+            <p>ABCD</p>
+        </div>
+        <br><a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
 # 🔹 DETAIL PAGE
 @app.route("/coin/<name>")
 def coin_detail(name):
