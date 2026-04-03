@@ -11,8 +11,8 @@ import datetime
 app = Flask(__name__)
 
 # 🔐 Telegram credentials
-TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
-CHAT_ID = "8007854479"
+TOKEN = "abcd"
+CHAT_ID = "abcd"
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
@@ -124,95 +124,20 @@ def run_bot():
             time.sleep(60)
 
 # 🔥 HOME PAGE
-@app.route("/")
-def dashboard():
-    cards = ""
-    for coin, data in latest_data.items():
-        cards += f"""
-        <a href="/coin/{coin}">
-            <div class="box">
-                <h2>{coin}</h2>
-                <p>{data['price']}</p>
-                <p class="{data['signal'].lower()}">{data['signal']}</p>
-            </div>
-        </a>
-        """
-
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-
-            h1 {{
-                color: #FFD700;
-            }}
-
-            .grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                gap: 12px;
-                padding: 12px;
-            }}
-
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                border: 1px solid #FFD700;
-                box-shadow: 0 0 10px rgba(255,215,0,0.2);
-                transition: 0.3s;
-            }}
-
-            .box:hover {{
-                transform: scale(1.05);
-            }}
-
-            p {{
-                color: #FFD700;
-            }}
-
-            .buy {{ color: #22c55e; }}
-            .sell {{ color: #ef4444; }}
-
-            a {{
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-
-    <body>
-
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கைை ❤️ ༻꧂</h4>
-
-    <div class="grid">
-        {cards}
-    </div>
-
-    </body>
-    </html>
-    """
-
-
-# 🔥 DETAIL PAGE
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
 
+    # 🔹 Performance stats
     total, wins, loss, pnl, accuracy = calculate_stats()
 
+    # 🔹 Last 10 trades for this coin
     history_html = "".join([
         f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
         for t in trade_history if t["coin"] == name
     ][-10:])
 
+    # 🔹 Chart symbol map
     chart_map = {
         "ETH": "BINANCE:ETHUSDT",
         "BTC": "BINANCE:BTCUSDT",
@@ -222,11 +147,12 @@ def coin_detail(name):
     }
 
     symbol = chart_map.get(name)
-    timezone = "Asia/Kolkata"
+    timezone = "Asia/Kolkata"  # 🕒 India time zone
 
-iframe = f"""
-<iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
-width="100%" height="300"></iframe>
+    iframe = f"""
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
+    width="100%" height="300"></iframe>
+    """
 
     return f"""
     <html>
@@ -239,7 +165,6 @@ width="100%" height="300"></iframe>
                 color: #FFD700;
                 text-align: center;
             }}
-
             .box {{
                 background: #1e293b;
                 padding: 15px;
@@ -247,7 +172,6 @@ width="100%" height="300"></iframe>
                 margin: 10px;
                 border: 1px solid #FFD700;
             }}
-
             a {{
                 color: #FFD700;
                 text-decoration: none;
@@ -262,6 +186,7 @@ width="100%" height="300"></iframe>
     <div class="box">
         <p>Price: {data.get('price')}</p>
         <p>RSI: {data.get('rsi')}</p>
+        <p>MACD: {data.get('macd')}</p>
         <p>Signal: {data.get('signal')}</p>
     </div>
 
@@ -273,13 +198,12 @@ width="100%" height="300"></iframe>
 
     <div class="box">
         <h3>📈 Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
-        width="100%" height="300"></iframe>
+        {iframe}
     </div>
 
     <div class="box">
-        <h3>📜 Trade History</h3>
-        {history_html}
+        <h3>📜 Last 10 Trades</h3>
+        {history_html if history_html else "<p>No trades yet.</p>"}
     </div>
 
     <br>
