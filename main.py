@@ -23,11 +23,9 @@ latest_data = {
 
 trade_history = []
 telegram_messages = []
-
-# 🔥 duplicate signal avoid
 last_signal = {}
 
-# 🔹 TELEGRAM FUNCTION
+# 🔹 TELEGRAM
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -41,7 +39,7 @@ def send_telegram(msg):
     except Exception as e:
         print("Telegram Error:", e)
 
-# 🔹 SIGNAL FUNCTION
+# 🔹 SIGNAL LOGIC
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal
 
@@ -52,7 +50,13 @@ def get_signal_for(symbol, name):
             print(name, "No data")
             return
 
-        close = df['Close'].dropna()
+        close = df['Close']
+
+        # 🔥 FIX (1D conversion)
+        if len(close.shape) > 1:
+            close = close.squeeze()
+
+        close = close.dropna()
 
         if len(close) < 30:
             return
@@ -81,7 +85,7 @@ def get_signal_for(symbol, name):
             "signal": signal
         }
 
-        # 🔥 Duplicate avoid
+        # 🔥 duplicate avoid
         if signal == last_signal.get(name):
             return
 
@@ -162,7 +166,7 @@ def signals_page():
     return f"""
     <html><body style="background:black;color:lime;text-align:center;">
     {common_header()}
-    <h3>Telegram Signals</h3>
+    <h3>📩 Telegram Signals</h3>
     {msgs if msgs else "<p>No signals</p>"}
     </body></html>
     """
@@ -173,15 +177,36 @@ def dashboard():
     cards = ""
     for coin, data in latest_data.items():
         cards += f"""
+        <a href="/coin/{coin}">
         <div style="margin:10px;padding:10px;border:1px solid white;">
         <h3>{coin}</h3>
         <p>Price: {data['price']}</p>
         <p>Signal: {data['signal']}</p>
         </div>
+        </a>
         """
     return f"<html><body style='background:black;color:white;text-align:center;'>{common_header()}{cards}</body></html>"
+
+# 🔹 COIN PAGE (FIXED)
+@app.route("/coin/<name>")
+def coin_detail(name):
+    data = latest_data.get(name, {})
+
+    return f"""
+    <html>
+    <body style="background:black;color:white;text-align:center;">
+        {common_header()}
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+        <br><a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
 
 # 🔹 MAIN
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    PORT = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=PORT, debug=False)
