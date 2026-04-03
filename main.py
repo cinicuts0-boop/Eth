@@ -28,8 +28,6 @@ def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         res = requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-        "disable_notification": False  # 🔔 Alert tone ON
-        })
         print("Telegram response:", res.json())
     except Exception as e:
         print("Telegram Error:", e)
