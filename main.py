@@ -195,6 +195,7 @@ def dashboard():
     <body>
 
     <h1>🚀 Mani Money Mindset 💸</h1>
+    <h4>💚  மகிழ்வித்து மகிழ்வோம் ❤️</h4>
 
     <div class="grid">
         {cards}
