@@ -222,6 +222,11 @@ def coin_detail(name):
     }
 
     symbol = chart_map.get(name)
+    timezone = "Asia/Kolkata"
+
+iframe = f"""
+<iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
+width="100%" height="300"></iframe>
 
     return f"""
     <html>
