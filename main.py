@@ -30,8 +30,8 @@ def common_header():
     <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
     <div class="nav">
         <a href="/">Home</a> | 
-        <a href="/">Rules</a> | 
-        <a href="/">Tricks</a>
+        <a href="/Rules">Rules</a> | 
+        <a href="/Tricks">Tricks</a>
     </div>
     <hr style="border:1px solid #FFD700; width:80%;">
     """
