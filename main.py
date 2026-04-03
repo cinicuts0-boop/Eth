@@ -56,46 +56,80 @@ def get_signal_for(symbol, name):
         if df is None or df.empty:
             return
 
-        close = df['Close']
-        if len(close.shape) > 1:
-            close = close.squeeze()
+        df = df.dropna()
 
-        close = close.dropna()
-        if len(close) < 30:
+        if len(df) < 50:
             return
 
+        close = df['Close']
+        high = df['High']
+        low = df['Low']
+        volume = df['Volume']
+
+        # 🔹 INDICATORS
         rsi_series = ta.momentum.RSIIndicator(close).rsi()
         macd_obj = ta.trend.MACD(close)
 
-        if rsi_series.isna().iloc[-1]:
-            return
+        ema_50 = close.ewm(span=50).mean().iloc[-1]
 
         rsi_val = float(rsi_series.iloc[-1])
         macd_val = float(macd_obj.macd().iloc[-1])
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
+        # 🔹 VOLUME CHECK
+        vol_avg = volume.rolling(20).mean().iloc[-1]
+        volume_ok = volume.iloc[-1] > vol_avg
+
+        # 🔹 ATR (Dynamic SL/Target)
+        atr = ta.volatility.AverageTrueRange(
+            high=high, low=low, close=close
+        ).average_true_range().iloc[-1]
+
+        # 🔹 SIGNAL LOGIC
         signal = "WAITING"
 
-        if rsi_val < 40 and macd_val > macd_sig:
+        # ❌ Sideways avoid
+        if 45 < rsi_val < 55:
+            signal = "WAITING"
+
+        elif (
+            rsi_val < 35 and
+            macd_val > macd_sig and
+            price > ema_50 and
+            volume_ok
+        ):
             signal = "BUY"
-        elif rsi_val > 60 and macd_val < macd_sig:
+
+        elif (
+            rsi_val > 65 and
+            macd_val < macd_sig and
+            price < ema_50 and
+            volume_ok
+        ):
             signal = "SELL"
 
+        # 🔹 SAVE DATA
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi_val, 2),
             "signal": signal
         }
 
+        # 🔁 Duplicate avoid
         if signal == last_signal.get(name):
             return
 
         if signal != "WAITING":
             last_signal[name] = signal
 
-            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
-            target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
+            # 🔹 ATR SL/Target
+            if signal == "BUY":
+                sl = round(price - atr, 2)
+                target = round(price + (atr * 2), 2)
+            else:
+                sl = round(price + atr, 2)
+                target = round(price - (atr * 2), 2)
 
             trade_history.append({
                 "coin": name,
@@ -113,7 +147,9 @@ Type: {signal}
 Entry: {price:.2f}
 Target: {target}
 SL: {sl}
-"""
+RSI: {round(rsi_val,2)}
+            """
+
             send_telegram(msg)
 
     except Exception as e:
