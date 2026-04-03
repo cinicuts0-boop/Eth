@@ -22,94 +22,101 @@ latest_data = {
 }
 
 trade_history = []
-
-# 🔥 NEW: Telegram messages store
 telegram_messages = []
+
+# 🔥 duplicate signal avoid
+last_signal = {}
 
 # 🔹 TELEGRAM FUNCTION
 def send_telegram(msg):
-    global telegram_messages
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        res = requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+        requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
 
-        # 🔥 SAVE MESSAGE FOR DASHBOARD
         telegram_messages.append({
             "msg": msg,
             "time": datetime.datetime.now().strftime("%H:%M:%S")
         })
 
-        print("Telegram response:", res.json())
     except Exception as e:
         print("Telegram Error:", e)
 
-# 🔹 STATS CALCULATION
-def calculate_stats():
-    total = len(trade_history)
-    wins = sum(1 for t in trade_history if "WIN" in t["result"])
-    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
-    accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
-
 # 🔹 SIGNAL FUNCTION
 def get_signal_for(symbol, name):
-    global latest_data, trade_history
+    global latest_data, trade_history, last_signal
+
     try:
-        df = yf.download(symbol, period="1d", interval="5m")
-        if df.empty:
-            print(name, "data empty")
-            return None
+        df = yf.download(symbol, period="1d", interval="5m", progress=False)
 
-        close = df['Close']
-        if len(close.shape) > 1:
-            close = close.squeeze()
+        if df is None or df.empty:
+            print(name, "No data")
+            return
 
-        rsi_val = float(ta.momentum.RSIIndicator(close).rsi().iloc[-1])
+        close = df['Close'].dropna()
+
+        if len(close) < 30:
+            return
+
+        rsi_series = ta.momentum.RSIIndicator(close).rsi()
         macd_obj = ta.trend.MACD(close)
+
+        if rsi_series.isna().iloc[-1]:
+            return
+
+        rsi_val = float(rsi_series.iloc[-1])
         macd_val = float(macd_obj.macd().iloc[-1])
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
         signal = "WAITING"
+
         if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
         elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
-        option = ""
-        if name in ["NIFTY", "BANKNIFTY"]:
-            option = "CE 📈" if signal == "BUY" else "PE 📉" if signal == "SELL" else ""
-        elif name == "CRUDE":
-            option = "CALL 📈" if signal == "BUY" else "PUT 📉" if signal == "SELL" else ""
+        latest_data[name] = {
+            "price": round(price, 2),
+            "rsi": round(rsi_val, 2),
+            "signal": signal
+        }
 
-        latest_data[name] = {"price": round(price,2), "rsi": round(rsi_val,2), "signal": signal}
+        # 🔥 Duplicate avoid
+        if signal == last_signal.get(name):
+            return
 
         if signal != "WAITING":
+            last_signal[name] = signal
+
             trade_history.append({
                 "coin": name,
                 "type": signal,
-                "price": round(price,2),
+                "price": round(price, 2),
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
-            msg = f"{name} → {signal} ({option}) @ {price:.2f}"
+
+            msg = f"{name} → {signal} @ {price:.2f}"
             send_telegram(msg)
-            return msg
+
     except Exception as e:
-        print(name, "error:", e)
-    return None
+        print(name, "ERROR:", e)
 
 # 🔹 UPDATE RESULTS
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
-            current_price = latest_data[trade["coin"]]["price"]
+            current_price = latest_data.get(trade["coin"], {}).get("price", 0)
+
+            if current_price == 0:
+                continue
+
             if trade["type"] == "BUY":
                 if current_price > trade["price"] + 10:
                     trade["result"] = "WIN ✅"
                 elif current_price < trade["price"] - 10:
                     trade["result"] = "LOSS ❌"
+
             elif trade["type"] == "SELL":
                 if current_price < trade["price"] - 10:
                     trade["result"] = "WIN ✅"
@@ -125,42 +132,26 @@ def run_bot():
             get_signal_for("^NSEI", "NIFTY")
             get_signal_for("^NSEBANK", "BANKNIFTY")
             get_signal_for("CL=F", "CRUDE")
+
             update_results()
+
             print("Updated...")
             time.sleep(300)
+
         except Exception as e:
-            print("Bot Error:", e)
+            print("BOT ERROR:", e)
             time.sleep(60)
 
-# 🔹 COMMON HEADER FUNCTION
+# 🔹 HEADER
 def common_header():
     return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
-    <div class="nav">
-        <a href="/">Home</a> | 
-        <a href="/signals">Signals</a> |
-        <a href="/Rules">Contact Us</a> | 
-        <a href="/Tricks">DMCA</a>
-    </div>
-    <style>
-        .nav {{
-            margin: 15px 0;
-            text-align: center;
-        }}
-        .nav a {{
-            color: #FFD700;
-            text-decoration: none;
-            margin: 0 8px;
-            font-weight: bold;
-        }}
-        .nav a:hover {{
-            color: #22c55e;
-        }}
-    </style>
+    <h2>🚀 Trading Dashboard</h2>
+    <a href="/">Home</a> |
+    <a href="/signals">Signals</a>
+    <hr>
     """
 
-# 🔥 NEW PAGE
+# 🔹 SIGNAL PAGE
 @app.route("/signals")
 def signals_page():
     msgs = "".join([
@@ -169,34 +160,28 @@ def signals_page():
     ])
 
     return f"""
-    <html>
-    <body style="background:#0f172a;color:#FFD700;text-align:center;">
-        {common_header()}
-        <h2>📩 Telegram Signals</h2>
-        {msgs if msgs else "<p>No signals yet</p>"}
-        <br><a href="/">⬅ Back</a>
-    </body>
-    </html>
+    <html><body style="background:black;color:lime;text-align:center;">
+    {common_header()}
+    <h3>Telegram Signals</h3>
+    {msgs if msgs else "<p>No signals</p>"}
+    </body></html>
     """
 
-# 🔹 HOME PAGE
+# 🔹 HOME
 @app.route("/")
 def dashboard():
     cards = ""
     for coin, data in latest_data.items():
         cards += f"""
-        <a href="/coin/{coin}">
-            <div style="margin:10px;padding:15px;background:#1e293b;border-radius:10px;">
-                <h2>{coin}</h2>
-                <p>{data['price']}</p>
-                <p>{data['signal']}</p>
-            </div>
-        </a>
+        <div style="margin:10px;padding:10px;border:1px solid white;">
+        <h3>{coin}</h3>
+        <p>Price: {data['price']}</p>
+        <p>Signal: {data['signal']}</p>
+        </div>
         """
-    return f"<html><body style='background:#0f172a;color:#FFD700;text-align:center;'>{common_header()}{cards}</body></html>"
+    return f"<html><body style='background:black;color:white;text-align:center;'>{common_header()}{cards}</body></html>"
 
 # 🔹 MAIN
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    PORT = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=PORT)
+    threading.Thread(target=run_bot, daemon=True).start()
+    app.run(host="0.0.0.0", port=8080, debug=False)
