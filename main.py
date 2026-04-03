@@ -57,12 +57,10 @@ def get_signal_for(symbol, name):
             return
 
         close = df['Close']
-
         if len(close.shape) > 1:
             close = close.squeeze()
 
         close = close.dropna()
-
         if len(close) < 30:
             return
 
@@ -110,7 +108,7 @@ def get_signal_for(symbol, name):
             })
 
             msg = f"""
-{name} SIGNAL 🚀
+🚀 {name} SIGNAL
 Type: {signal}
 Entry: {price:.2f}
 Target: {target}
@@ -153,21 +151,23 @@ def run_bot():
             get_signal_for("CL=F", "CRUDE")
 
             update_results()
-
-            print("Updated...")
             time.sleep(300)
 
         except Exception as e:
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# 🔹 HEADER
+# 🔹 GOLD HEADER
 def common_header():
     return """
-    <h2>🚀 Trading Dashboard</h2>
-    <a href="/">Home</a> |
-    <a href="/signals">Signals</a> |
-    <hr>
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
+    <div class="nav">
+        <a href="/">Home</a> | 
+        <a href="/signals">Signals</a> | 
+        <a href="/rules">Contact</a> | 
+        <a href="/tricks">DMCA</a>
+    </div>
     """
 
 # 🔹 SIGNAL PAGE
@@ -179,45 +179,73 @@ def signals_page():
     ])
 
     return f"""
-    <html><body style="background:black;color:lime;text-align:center;">
+    <html>
+    <style>
+    body {{background:#0f172a;color:#FFD700;text-align:center;}}
+    </style>
+    <body>
     {common_header()}
     <h3>📩 Signals</h3>
     {msgs if msgs else "<p>No signals</p>"}
     </body></html>
     """
 
-# 🔹 HOME
+# 🔹 HOME (GOLD UI)
 @app.route("/")
 def dashboard():
     cards = ""
     for coin, data in latest_data.items():
 
-        color = "white"
+        color = "#FFD700"
         if data["signal"] == "BUY":
-            color = "lime"
+            color = "#22c55e"
         elif data["signal"] == "SELL":
-            color = "red"
+            color = "#ef4444"
 
         cards += f"""
         <a href="/coin/{coin}">
-        <div style="margin:10px;padding:10px;border:1px solid {color};">
+        <div class="box">
         <h3>{coin}</h3>
-        <p>Price: {data['price']}</p>
+        <p>{data['price']}</p>
         <p style="color:{color}">{data['signal']}</p>
         </div>
         </a>
         """
 
-    return f"<html><body style='background:black;color:white;text-align:center;'>{common_header()}{cards}</body></html>"
+    return f"""
+    <html>
+    <head>
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        text-align:center;
+        font-family:Arial;
+    }}
+    .box {{
+        background:#1e293b;
+        padding:20px;
+        margin:10px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+    a {{text-decoration:none;color:#FFD700;}}
+    </style>
+    </head>
+    <body>
+    {common_header()}
+    {cards}
+    </body>
+    </html>
+    """
 
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
-
     total, wins, loss, pnl, accuracy = calculate_stats()
 
-    history_html = "".join([
+    history = "".join([
         f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
         for t in trade_history if t["coin"] == name
     ][-10:])
@@ -234,26 +262,26 @@ def coin_detail(name):
 
     return f"""
     <html>
-    <body style="background:black;color:white;text-align:center;">
-        {common_header()}
+    <body style="background:#0f172a;color:#FFD700;text-align:center;">
+    {common_header()}
 
-        <h2>{name}</h2>
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
+    <h2>{name}</h2>
+    <p>Price: {data.get('price')}</p>
+    <p>RSI: {data.get('rsi')}</p>
+    <p>Signal: {data.get('signal')}</p>
 
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
+    <h3>📊 Performance</h3>
+    <p>Accuracy: {accuracy}%</p>
+    <p>PnL: {pnl}</p>
 
-        <h3>📈 Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
-        width="100%" height="300"></iframe>
+    <h3>📈 Chart</h3>
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
+    width="100%" height="300"></iframe>
 
-        <h3>📜 Trade History</h3>
-        {history_html if history_html else "<p>No trades</p>"}
+    <h3>📜 History</h3>
+    {history if history else "<p>No trades</p>"}
 
-        <br><a href="/">⬅ Back</a>
+    <a href="/">⬅ Back</a>
     </body>
     </html>
     """
