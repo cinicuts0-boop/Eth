@@ -1,4 +1,3 @@
-
 import requests
 import time
 import yfinance as yf
@@ -10,21 +9,19 @@ import datetime
 
 app = Flask(__name__)
 
-# 🔐 Telegram credentials
-TOKEN = "abcd"
-CHAT_ID = "abcd"
+TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
+CHAT_ID = "8007854479"
 
 latest_data = {
-    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
+    "ETH": {"price": 0, "rsi": 0, "macd": 0, "signal": "WAITING"},
+    "BTC": {"price": 0, "rsi": 0, "macd": 0, "signal": "WAITING"},
+    "NIFTY": {"price": 0, "rsi": 0, "macd": 0, "signal": "WAITING"},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "macd": 0, "signal": "WAITING"},
+    "CRUDE": {"price": 0, "rsi": 0, "macd": 0, "signal": "WAITING"}
 }
 
 trade_history = []
 
-# 🔔 Telegram send function
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -33,7 +30,6 @@ def send_telegram(msg):
     except Exception as e:
         print("Telegram Error:", e)
 
-# 📊 Performance stats
 def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
@@ -42,7 +38,6 @@ def calculate_stats():
     accuracy = (wins / total * 100) if total > 0 else 0
     return total, wins, loss, pnl, round(accuracy, 2)
 
-# 🔥 Signal calculation
 def get_signal_for(symbol, name):
     global latest_data, trade_history
     try:
@@ -62,20 +57,19 @@ def get_signal_for(symbol, name):
         price = float(close.iloc[-1])
 
         signal = "WAITING"
-        if rsi_val < 35 and macd_val > macd_sig:
+        if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi_val > 65 and macd_val < macd_sig:
+        elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
-        option = ""
-        if name in ["NIFTY", "BANKNIFTY"]:
-            option = "CE 📈" if signal == "BUY" else "PE 📉" if signal == "SELL" else ""
-        elif name == "CRUDE":
-            option = "CALL 📈" if signal == "BUY" else "PUT 📉" if signal == "SELL" else ""
+        latest_data[name] = {
+            "price": round(price,2),
+            "rsi": round(rsi_val,2),
+            "macd": round(macd_val,2),
+            "signal": signal
+        }
 
-        latest_data[name] = {"price": round(price,2), "rsi": round(rsi_val,2), "signal": signal}
-
-        # ✅ Telegram msg auto-send
+        # Telegram auto-send
         if signal != "WAITING":
             trade_history.append({
                 "coin": name,
@@ -84,14 +78,13 @@ def get_signal_for(symbol, name):
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
-            msg = f"{name} → {signal} ({option}) @ {price:.2f}"
+            msg = f"{name} → {signal} @ {price:.2f}"
             send_telegram(msg)
             return msg
     except Exception as e:
         print(name, "error:", e)
     return None
 
-# 🔄 Update open trades
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
@@ -107,7 +100,6 @@ def update_results():
                 elif current_price > trade["price"] + 10:
                     trade["result"] = "LOSS ❌"
 
-# 🟢 Bot runner
 def run_bot():
     while True:
         try:
@@ -118,103 +110,47 @@ def run_bot():
             get_signal_for("CL=F", "CRUDE")
             update_results()
             print("Updated...")
-            time.sleep(300)  # 5 min
+            time.sleep(300)
         except Exception as e:
             print("Bot Error:", e)
             time.sleep(60)
 
-# 🔥 HOME PAGE
-@app.route("/coin/<name>")
-def coin_detail(name):
-    data = latest_data.get(name, {})
-
-    # 🔹 Performance stats
-    total, wins, loss, pnl, accuracy = calculate_stats()
-
-    # 🔹 Last 10 trades for this coin
-    history_html = "".join([
-        f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
-
-    # 🔹 Chart symbol map
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
-
-    symbol = chart_map.get(name)
-    timezone = "Asia/Kolkata"  # 🕒 India time zone
-
-    iframe = f"""
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
-    width="100%" height="300"></iframe>
-    """
+# ---------------- DASHBOARD ----------------
+@app.route("/")
+def dashboard():
+    cards = ""
+    for coin, data in latest_data.items():
+        cards += f"""
+        <div class="box">
+            <h2>{coin}</h2>
+            <p>Price: {data['price']}</p>
+            <p>RSI: {data['rsi']}</p>
+            <p>MACD: {data['macd']}</p>
+            <p class="{data['signal'].lower()}">Signal: {data['signal']}</p>
+        </div>
+        """
 
     return f"""
     <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 15px;
-                border-radius: 15px;
-                margin: 10px;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
+    <style>
+        body {{ background:#0f172a; color:#FFD700; font-family:Arial; text-align:center; }}
+        .grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; padding:12px; }}
+        .box {{ background:#1e293b; padding:20px; border-radius:15px; border:1px solid #FFD700; }}
+        .buy {{ color:#22c55e; }}
+        .sell {{ color:#ef4444; }}
+    </style>
     </head>
-
     <body>
-
-    <h1>{name} DETAILS</h1>
-
-    <div class="box">
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>MACD: {data.get('macd')}</p>
-        <p>Signal: {data.get('signal')}</p>
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <div class="grid">
+        {cards}
     </div>
-
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
-    </div>
-
-    <div class="box">
-        <h3>📈 Chart</h3>
-        {iframe}
-    </div>
-
-    <div class="box">
-        <h3>📜 Last 10 Trades</h3>
-        {history_html if history_html else "<p>No trades yet.</p>"}
-    </div>
-
-    <br>
-    <a href="/">⬅ Back</a>
-
     </body>
     </html>
     """
 
-
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
-    PORT = int(os.environ.get("PORT", 8080))
+    PORT = int(os.environ.get("PORT",8080))
     app.run(host="0.0.0.0", port=PORT)
