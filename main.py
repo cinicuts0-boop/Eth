@@ -23,7 +23,19 @@ latest_data = {
 
 trade_history = []
 
-# 🔹 TELEGRAM FUNCTION
+# 🔹 COMMON HEADER for all pages
+def common_header():
+    return """
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
+    <div class="nav">
+        <a href="/">Home</a> | 
+        <a href="/Rules">Contact Us</a> | 
+        <a href="/Tricks">DMCA</a>
+    </div>
+    <hr style="border:1px solid #FFD700; width:80%;">
+    """
+
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -32,7 +44,6 @@ def send_telegram(msg):
     except Exception as e:
         print("Telegram Error:", e)
 
-# 🔹 STATS CALCULATION
 def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
@@ -41,7 +52,6 @@ def calculate_stats():
     accuracy = (wins / total * 100) if total > 0 else 0
     return total, wins, loss, pnl, round(accuracy, 2)
 
-# 🔹 SIGNAL FUNCTION
 def get_signal_for(symbol, name):
     global latest_data, trade_history
     try:
@@ -89,7 +99,6 @@ def get_signal_for(symbol, name):
         print(name, "error:", e)
     return None
 
-# 🔹 UPDATE RESULTS
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
@@ -105,7 +114,6 @@ def update_results():
                 elif current_price > trade["price"] + 10:
                     trade["result"] = "LOSS ❌"
 
-# 🔹 BOT LOOP
 def run_bot():
     while True:
         try:
@@ -121,46 +129,13 @@ def run_bot():
             print("Bot Error:", e)
             time.sleep(60)
 
-# 🔹 COMMON HEADER FUNCTION
-def common_header():
-    return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
-    <div class="nav">
-        <a href="/">Home</a> | 
-        <a href="/Rules">RULES</a> | 
-        <a href="/Tricks">TRICKS</a>
-    </div>
-    <style>
-        .nav {{
-            margin: 15px 0;
-            text-align: center;
-        }}
-        .nav a {{
-            color: #FFD700;
-            text-decoration: none;
-            margin: 0 8px;
-            font-weight: bold;
-        }}
-        .nav a:hover {{
-            color: #22c55e;
-        }}
-        @media screen and (max-width: 500px) {{
-            .nav a {{
-                display: block;
-                margin: 8px 0;
-            }}
-        }}
-    </style>
-    """
-
-# 🔹 HOME PAGE
+# 🔥 HOME PAGE
 @app.route("/")
 def dashboard():
     cards = ""
     for coin, data in latest_data.items():
         cards += f"""
-        <a href="/coin/{coin}" class="box-link">
+        <a href="/coin/{coin}">
             <div class="box">
                 <h2>{coin}</h2>
                 <p>{data['price']}</p>
@@ -194,10 +169,11 @@ def dashboard():
                 transition: 0.3s;
             }}
             .box:hover {{ transform: scale(1.05); }}
-            p {{ color: #FFD700; }}
             .buy {{ color: #22c55e; }}
             .sell {{ color: #ef4444; }}
             a.box-link {{ text-decoration: none; }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
         </style>
     </head>
     <body>
@@ -206,7 +182,7 @@ def dashboard():
     </body>
     </html>
     """
-  # 🔹 CONTACT US PAGE
+     # 🔹 CONTACT US PAGE
 @app.route("/Rules")
 def contact_us():
     return f"""
@@ -284,7 +260,8 @@ def dmca():
     </body>
     </html>
     """
-# 🔹 DETAIL PAGE
+
+# 🔥 DETAIL PAGE with IST timezone for chart
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
@@ -304,7 +281,7 @@ def coin_detail(name):
     }
 
     symbol = chart_map.get(name)
-    timezone = "Asia/Kolkata"
+    timezone = "Asia/Kolkata"  # 🕒 IST
 
     return f"""
     <html>
@@ -328,6 +305,8 @@ def coin_detail(name):
                 color: #FFD700;
                 text-decoration: none;
             }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
         </style>
     </head>
     <body>
