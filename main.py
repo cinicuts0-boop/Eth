@@ -173,7 +173,7 @@ def signals_page():
     </body></html>
     """
      # 🔹 RULES PAGE
-@app.route("/Rules")
+@app.route("/rules")
 def rules_page():
     return f"""
     <html>
@@ -214,7 +214,7 @@ def rules_page():
     """
 
 # 🔹 TRICKS / DMCA PAGE
-@app.route("/Tricks")
+@app.route("/tricks")
 def tricks_page():
     return f"""
     <html>
