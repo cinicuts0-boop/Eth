@@ -128,8 +128,8 @@ def common_header():
     <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
     <div class="nav">
         <a href="/">Home</a> | 
-        <a href="/Rules">Contact Us</a> | 
-        <a href="/Tricks">DMCA</a>
+        <a href="/Rules">RULES</a> | 
+        <a href="/Tricks">TRICKS</a>
     </div>
     <style>
         .nav {{
