@@ -30,8 +30,8 @@ def common_header():
     <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
     <div class="nav">
         <a href="/">Home</a> | 
-        <a href="/Rules">Contact Us</a> | 
-        <a href="/Tricks">DMCA</a>
+        <a href="/">Rules</a> | 
+        <a href="/">Tricks</a>
     </div>
     <hr style="border:1px solid #FFD700; width:80%;">
     """
@@ -212,10 +212,10 @@ def contact_us():
     <body>
         {common_header()}
         <div class="box">
-            <h2>📞 Contact Us</h2>
-            <p>Email: mani@example.com</p>
-            <p>Phone: +91 9876543210</p>
-            <p>Address: Chennai, India</p>
+            <h2>📜 RULES</h2>
+            <p>ABCD</p>
+            <p>ABCD</p>
+            <p>ABCD</p>
         </div>
         <br><a href="/">⬅ Back</a>
     </body>
@@ -252,9 +252,9 @@ def dmca():
     <body>
         {common_header()}
         <div class="box">
-            <h2>📜 DMCA</h2>
-            <p>All content on this site is © Mani Money Mindset. Unauthorized use is prohibited.</p>
-            <p>If you find any copyrighted material, please contact us immediately.</p>
+            <h2>📜 TRICKS</h2>
+            <p>ABCD</p>
+            <p>ABCD</p>
         </div>
         <br><a href="/">⬅ Back</a>
     </body>
