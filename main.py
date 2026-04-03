@@ -346,6 +346,60 @@ def coin_detail(name):
             <p>Accuracy: {accuracy}%</p>
             <p>PnL: {pnl}</p>
         </div>
+        <!-- 🔔 Alert Sound -->
+<audio id="alertSound" src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3"></audio>
+
+<!-- 🚨 Signal Display Box -->
+<div id="signalContainer" style="
+    margin:20px;
+    padding:15px;
+    border-radius:10px;
+    font-size:18px;
+    font-weight:bold;
+    background:#1e293b;
+    border:1px solid #FFD700;
+">
+    Waiting for signals...
+</div>
+
+<script>
+let lastMsg = "";
+
+function checkSignal() {
+    fetch("/latest_signal")
+    .then(res => res.json())
+    .then(data => {
+        if (data.msg && data.msg !== lastMsg) {
+            lastMsg = data.msg;
+
+            let box = document.getElementById("signalContainer");
+
+            // 🎨 Color logic
+            if (data.msg.includes("BUY")) {
+                box.style.color = "#22c55e"; // green
+            } 
+            else if (data.msg.includes("SELL")) {
+                box.style.color = "#ef4444"; // red
+            } 
+            else {
+                box.style.color = "#FFD700";
+            }
+
+            // 📝 Show message
+            box.innerText = data.msg;
+
+            // 🔔 Play sound
+            document.getElementById("alertSound").play();
+
+            // 🚨 Popup alert
+            alert("New Signal 🚀\n\n" + data.msg);
+        }
+    });
+}
+
+// ⏱️ every 5 sec check
+setInterval(checkSignal, 5000);
+</script>
         <div class="box">
             <h3>📈 Chart</h3>
             <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
