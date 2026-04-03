@@ -21,161 +21,345 @@ latest_data = {
 }
 
 trade_history = []
-last_signal = ""
 
-# 🔹 COMMON HEADER
-def common_header():
-    return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
-    <div class="nav">
-        <a href="/">Home</a> | 
-        <a href="/Rules">Contact</a> | 
-        <a href="/Tricks">DMCA</a>
-    </div>
-    <style>
-        .nav a {color:#FFD700;margin:0 10px;text-decoration:none;font-weight:bold;}
-        .nav a:hover {color:#22c55e;}
-    </style>
-    """
-
-# 🔔 TELEGRAM
+# 🔹 TELEGRAM FUNCTION
 def send_telegram(msg):
-    global last_signal
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(url, data={
-            "chat_id": CHAT_ID,
-            "text": msg,
-            "disable_notification": False
-        })
-        last_signal = msg
+        res = requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+        print("Telegram response:", res.json())
     except Exception as e:
-        print(e)
+        print("Telegram Error:", e)
 
-# 📊 SIGNAL
-def get_signal(symbol, name):
+# 🔹 STATS CALCULATION
+def calculate_stats():
+    total = len(trade_history)
+    wins = sum(1 for t in trade_history if "WIN" in t["result"])
+    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
+    pnl = (wins * 10) - (loss * 10)
+    accuracy = (wins / total * 100) if total > 0 else 0
+    return total, wins, loss, pnl, round(accuracy, 2)
+
+# 🔹 SIGNAL FUNCTION
+def get_signal_for(symbol, name):
     global latest_data, trade_history
     try:
         df = yf.download(symbol, period="1d", interval="5m")
-        close = df['Close'].squeeze()
+        if df.empty:
+            print(name, "data empty")
+            return None
 
-        rsi = float(ta.momentum.RSIIndicator(close).rsi().iloc[-1])
-        macd = ta.trend.MACD(close)
-        macd_val = float(macd.macd().iloc[-1])
-        macd_sig = float(macd.macd_signal().iloc[-1])
+        close = df['Close']
+        if len(close.shape) > 1:
+            close = close.squeeze()
+
+        rsi_val = float(ta.momentum.RSIIndicator(close).rsi().iloc[-1])
+        macd_obj = ta.trend.MACD(close)
+        macd_val = float(macd_obj.macd().iloc[-1])
+        macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
         signal = "WAITING"
-        if rsi < 40 and macd_val > macd_sig:
+        if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi > 60 and macd_val < macd_sig:
+        elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
-        latest_data[name] = {"price": round(price,2), "rsi": round(rsi,2), "signal": signal}
+        option = ""
+        if name in ["NIFTY", "BANKNIFTY"]:
+            option = "CE 📈" if signal == "BUY" else "PE 📉" if signal == "SELL" else ""
+        elif name == "CRUDE":
+            option = "CALL 📈" if signal == "BUY" else "PUT 📉" if signal == "SELL" else ""
+
+        latest_data[name] = {"price": round(price,2), "rsi": round(rsi_val,2), "signal": signal}
 
         if signal != "WAITING":
-            msg = f"{name} → {signal} @ {price:.2f}"
+            trade_history.append({
+                "coin": name,
+                "type": signal,
+                "price": round(price,2),
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "result": "OPEN"
+            })
+            msg = f"{name} → {signal} ({option}) @ {price:.2f}"
             send_telegram(msg)
-
+            return msg
     except Exception as e:
-        print(e)
+        print(name, "error:", e)
+    return None
 
-# 🔄 LOOP
+# 🔹 UPDATE RESULTS
+def update_results():
+    for trade in trade_history:
+        if trade["result"] == "OPEN":
+            current_price = latest_data[trade["coin"]]["price"]
+            if trade["type"] == "BUY":
+                if current_price > trade["price"] + 10:
+                    trade["result"] = "WIN ✅"
+                elif current_price < trade["price"] - 10:
+                    trade["result"] = "LOSS ❌"
+            elif trade["type"] == "SELL":
+                if current_price < trade["price"] - 10:
+                    trade["result"] = "WIN ✅"
+                elif current_price > trade["price"] + 10:
+                    trade["result"] = "LOSS ❌"
+
+# 🔹 BOT LOOP
 def run_bot():
     while True:
-        get_signal("ETH-USD","ETH")
-        get_signal("BTC-USD","BTC")
-        get_signal("^NSEI","NIFTY")
-        get_signal("^NSEBANK","BANKNIFTY")
-        get_signal("CL=F","CRUDE")
-        time.sleep(300)
+        try:
+            get_signal_for("ETH-USD", "ETH")
+            get_signal_for("BTC-USD", "BTC")
+            get_signal_for("^NSEI", "NIFTY")
+            get_signal_for("^NSEBANK", "BANKNIFTY")
+            get_signal_for("CL=F", "CRUDE")
+            update_results()
+            print("Updated...")
+            time.sleep(300)
+        except Exception as e:
+            print("Bot Error:", e)
+            time.sleep(60)
 
-# 🔹 API
-@app.route("/latest_signal")
-def latest_signal_api():
-    return {"msg": last_signal}
+# 🔹 COMMON HEADER FUNCTION
+def common_header():
+    return """
+    <h1>🚀 Mani MoneyMindset 💸</h1>
+    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
+    <div class="nav">
+        <a href="/">Home</a> | 
+        <a href="/Rules">Contact Us</a> | 
+        <a href="/Tricks">DMCA</a>
+    </div>
+    <style>
+        .nav {{
+            margin: 15px 0;
+            text-align: center;
+        }}
+        .nav a {{
+            color: #FFD700;
+            text-decoration: none;
+            margin: 0 8px;
+            font-weight: bold;
+        }}
+        .nav a:hover {{
+            color: #22c55e;
+        }}
+        @media screen and (max-width: 500px) {{
+            .nav a {{
+                display: block;
+                margin: 8px 0;
+            }}
+        }}
+    </style>
+    """
 
-# 🏠 HOME
+# 🔹 HOME PAGE
 @app.route("/")
-def home():
+def dashboard():
     cards = ""
-    for c,d in latest_data.items():
+    for coin, data in latest_data.items():
         cards += f"""
-        <div class="box">
-            <h2>{c}</h2>
-            <p>{d['price']}</p>
-            <p class="{d['signal'].lower()}">{d['signal']}</p>
-        </div>
+        <a href="/coin/{coin}" class="box-link">
+            <div class="box">
+                <h2>{coin}</h2>
+                <p>{data['price']}</p>
+                <p class="{data['signal'].lower()}">{data['signal']}</p>
+            </div>
+        </a>
         """
-
     return f"""
     <html>
-    <body style="background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;">
-
-    {common_header()}
-
-    <!-- SIGNAL BOX -->
-    <div id="signalBox" style="margin:20px;padding:15px;border-radius:10px;background:#1e293b;">
-        Waiting for signals...
-    </div>
-
-    <!-- SOUND -->
-    <audio id="sound" src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3"></audio>
-
-    <div>{cards}</div>
-
-    <script>
-    let lastMsg="";
-
-    setInterval(()=>{
-        fetch("/latest_signal")
-        .then(r=>r.json())
-        .then(d=>{
-            if(d.msg && d.msg!==lastMsg){
-                lastMsg=d.msg;
-
-                let box=document.getElementById("signalBox");
-
-                if(d.msg.includes("BUY")) box.style.color="#22c55e";
-                else if(d.msg.includes("SELL")) box.style.color="#ef4444";
-
-                box.innerText=d.msg;
-
-                document.getElementById("sound").play();
-                alert("New Signal 🚀\\n"+d.msg);
-            }
-        })
-    },5000);
-    </script>
-
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 12px;
+                padding: 12px;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+                box-shadow: 0 0 10px rgba(255,215,0,0.2);
+                transition: 0.3s;
+            }}
+            .box:hover {{ transform: scale(1.05); }}
+            p {{ color: #FFD700; }}
+            .buy {{ color: #22c55e; }}
+            .sell {{ color: #ef4444; }}
+            a.box-link {{ text-decoration: none; }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="grid">{cards}</div>
+    </body>
+    </html>
+    """
+    # 🔹 RULES PAGE
+@app.route("/Rules")
+def rules_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h3>📜 Contact / Rules</h3>
+            <p>For any queries, contact Mani via Telegram or email.</p>
+            <p>All trading signals are educational; trade at your own risk.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
     </body>
     </html>
     """
 
-# 📄 CONTACT
-@app.route("/Rules")
-def contact():
-    return f"""
-    <html><body style="background:#0f172a;color:#FFD700;text-align:center;">
-    {common_header()}
-    <h2>Contact</h2>
-    <p>Email: mani@example.com</p>
-    </body></html>
-    """
-
-# 📄 DMCA
+# 🔹 TRICKS / DMCA PAGE
 @app.route("/Tricks")
-def dmca():
+def tricks_page():
     return f"""
-    <html><body style="background:#0f172a;color:#FFD700;text-align:center;">
-    {common_header()}
-    <h2>DMCA</h2>
-    <p>All rights reserved</p>
-    </body></html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>{common_header()}
+        <div class="box">
+            <h3>🛡️ DMCA / Tricks</h3>
+            <p>All content on this website is protected. Please respect copyrights.</p>
+            <p>Do not copy or redistribute without permission.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
     """
 
-# ▶️ RUN
-if __name__ == "__main__":
+# 🔹 DETAIL PAGE
+@app.route("/coin/<name>")
+def coin_detail(name):
+    data = latest_data.get(name, {})
+    total, wins, loss, pnl, accuracy = calculate_stats()
+
+    history_html = "".join([
+        f"<p>{t['time']} | {t['coin']} {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
+
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
+
+    symbol = chart_map.get(name)
+    timezone = "Asia/Kolkata"
+
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 15px;
+                border-radius: 15px;
+                margin: 10px;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <p>Price: {data.get('price')}</p>
+            <p>RSI: {data.get('rsi')}</p>
+            <p>Signal: {data.get('signal')}</p>
+        </div>
+        <div class="box">
+            <h3>📊 Performance</h3>
+            <p>Accuracy: {accuracy}%</p>
+            <p>PnL: {pnl}</p>
+        </div>
+        <div class="box">
+            <h3>📈 Chart</h3>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
+            width="100%" height="300"></iframe>
+        </div>
+        <div class="box">
+            <h3>📜 Trade History</h3>
+            {history_html if history_html else "<p>No trades yet.</p>"}
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+if name == "__main__":
     threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=8080)
+    PORT = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=PORT)
