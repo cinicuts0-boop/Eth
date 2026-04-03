@@ -182,6 +182,84 @@ def dashboard():
     </body>
     </html>
     """
+    # 🔹 CONTACT US PAGE
+@app.route("/Rules")
+def contact_us():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            a {{ color: #FFD700; text-decoration: none; }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                margin: 20px auto;
+                width: 90%;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h2>📞 Contact Us</h2>
+            <p>Email: mani@example.com</p>
+            <p>Phone: +91 9876543210</p>
+            <p>Address: Chennai, India</p>
+        </div>
+        <br><a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+# 🔹 DMCA PAGE
+@app.route("/Tricks")
+def dmca():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            a {{ color: #FFD700; text-decoration: none; }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                margin: 20px auto;
+                width: 90%;
+                border-radius: 15px;
+                border: 1px solid #FFD700;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h2>📜 DMCA</h2>
+            <p>All content on this site is © Mani Money Mindset. Unauthorized use is prohibited.</p>
+            <p>If you find any copyrighted material, please contact us immediately.</p>
+        </div>
+        <br><a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
 
 # 🔥 DETAIL PAGE with IST timezone for chart
 @app.route("/coin/<name>")
