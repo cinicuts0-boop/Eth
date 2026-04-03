@@ -27,7 +27,7 @@ trade_history = []
 def common_header():
     return """
     <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
+    <h5>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h5>
     <div class="nav">
         <a href="/">Home</a> | 
         <a href="/Rules">Rules</a> | 
