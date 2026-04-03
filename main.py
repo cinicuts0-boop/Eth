@@ -32,8 +32,7 @@ def send_telegram(msg):
         print("Telegram response:", res.json())
     except Exception as e:
         print("Telegram Error:", e)
-        # ✅ Test message
-send_telegram("🚀 Telegram bot test message ✅")
+        
 
 # 📊 Performance stats
 def calculate_stats():
