@@ -68,6 +68,10 @@ def get_signal_for(symbol, name):
         elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
+        
+        # 🔹 Debug print for signals
+        print(f"{name}: Price={price}, RSI={rsi_val:.2f}, MACD={macd_val:.2f}, MACD_SIG={macd_sig:.2f}, Signal={signal}")
+
         option = ""
         if name in ["NIFTY", "BANKNIFTY"]:
             option = "CE 📈" if signal == "BUY" else "PE 📉" if signal == "SELL" else ""
