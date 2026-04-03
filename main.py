@@ -142,6 +142,20 @@ def dashboard():
                 text-align: center;
             }}
             h1 {{ color: #FFD700; }}
+
+            .nav {{
+                margin: 15px 0;
+            }}
+            .nav a {{
+                color: #FFD700;
+                text-decoration: none;
+                margin: 0 12px;
+                font-weight: bold;
+            }}
+            .nav a:hover {{
+                color: #22c55e;
+            }}
+
             .grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -160,17 +174,24 @@ def dashboard():
             p {{ color: #FFD700; }}
             .buy {{ color: #22c55e; }}
             .sell {{ color: #ef4444; }}
-            a {{ text-decoration: none; }}
+            a.box-link {{ text-decoration: none; }}
         </style>
     </head>
     <body>
         <h1>🚀 Mani Money Mindset 💸</h1>
         <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
+
+        <!-- 🔹 Navigation Bar -->
+        <div class="nav">
+            <a href="/">Home</a> | 
+            <a href="/contact">Contact Us</a> | 
+            <a href="/dmca">DMCA</a>
+        </div>
+
         <div class="grid">{cards}</div>
     </body>
     </html>
     """
-
 # 🔥 DETAIL PAGE with IST timezone for chart
 @app.route("/coin/<name>")
 def coin_detail(name):
