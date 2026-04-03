@@ -53,19 +53,28 @@ def get_signal_for(symbol, name):
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
 
-        if df is None or df.empty:
-            return
+if df is None or df.empty:
+    return
 
-        df = df.dropna()
+df = df.dropna()
 
-        if len(df) < 50:
-            return
+if len(df) < 50:
+    return
 
-        close = df['Close']
-        high = df['High']
-        low = df['Low']
-        volume = df['Volume']
+close = df['Close']
+high = df['High']
+low = df['Low']
+volume = df['Volume']
 
+# 🔥 FIX
+if len(close.shape) > 1:
+    close = close.squeeze()
+if len(high.shape) > 1:
+    high = high.squeeze()
+if len(low.shape) > 1:
+    low = low.squeeze()
+if len(volume.shape) > 1:
+    volume = volume.squeeze()
         # 🔹 INDICATORS
         rsi_series = ta.momentum.RSIIndicator(close).rsi()
         macd_obj = ta.trend.MACD(close)
