@@ -71,10 +71,10 @@ def get_signal_for(symbol, name):
 
         signal = "WAITING"
 
-        # 🔥 Improved Logic (strong filter)
-        if rsi_val < 35 and macd_val > macd_sig:
+        # 🔥 Improved logic
+        if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi_val > 65 and macd_val < macd_sig:
+        elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
         latest_data[name] = {
@@ -83,7 +83,6 @@ def get_signal_for(symbol, name):
             "signal": signal
         }
 
-        # ❌ duplicate block
         if signal == last_signal.get(name):
             return
 
@@ -93,7 +92,7 @@ def get_signal_for(symbol, name):
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
-            trade = {
+            trade_history.append({
                 "coin": name,
                 "type": signal,
                 "price": round(price, 2),
@@ -101,20 +100,9 @@ def get_signal_for(symbol, name):
                 "target": target,
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
-            }
+            })
 
-            trade_history.append(trade)
-
-            # 🔥 Telegram PRO msg
-            msg = f"""
-🚀 {name} SIGNAL
-
-Type: {signal}
-Entry: {price:.2f}
-Target: {target}
-StopLoss: {sl}
-RSI: {rsi_val:.2f}
-"""
+            msg = f"{name} → {signal}\nEntry: {price:.2f}\nTarget: {target}\nSL: {sl}"
             send_telegram(msg)
 
     except Exception as e:
@@ -124,8 +112,8 @@ RSI: {rsi_val:.2f}
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
-
             current_price = latest_data.get(trade["coin"], {}).get("price", 0)
+
             if current_price == 0:
                 continue
 
@@ -163,9 +151,11 @@ def run_bot():
 # 🔹 HEADER
 def common_header():
     return """
-    <h2>🚀 Mani Trading Dashboard</h2>
+    <h2>🚀 Trading Dashboard</h2>
     <a href="/">Home</a> |
-    <a href="/signals">Signals</a>
+    <a href="/signals">Signals</a> |
+    <a href="/rules">Rules</a> |
+    <a href="/tricks">Tricks</a>
     <hr>
     """
 
@@ -180,8 +170,32 @@ def signals_page():
     return f"""
     <html><body style="background:black;color:lime;text-align:center;">
     {common_header()}
-    <h3>📩 Signals</h3>
+    <h3>📩 Telegram Signals</h3>
     {msgs if msgs else "<p>No signals</p>"}
+    </body></html>
+    """
+
+# 🔹 RULES PAGE
+@app.route("/rules")
+def rules_page():
+    return f"""
+    <html><body style="background:#0f172a;color:#FFD700;text-align:center;">
+    {common_header()}
+    <h3>📜 Rules</h3>
+    <p>Trade at your own risk</p>
+    <a href="/">⬅ Back</a>
+    </body></html>
+    """
+
+# 🔹 TRICKS PAGE
+@app.route("/tricks")
+def tricks_page():
+    return f"""
+    <html><body style="background:#0f172a;color:#FFD700;text-align:center;">
+    {common_header()}
+    <h3>🛡️ DMCA</h3>
+    <p>Do not copy content</p>
+    <a href="/">⬅ Back</a>
     </body></html>
     """
 
@@ -220,20 +234,18 @@ def coin_detail(name):
     ][-10:])
 
     return f"""
-    <html>
-    <body style="background:black;color:white;text-align:center;">
-        {common_header()}
-        <h2>{name}</h2>
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
+    <html><body style="background:black;color:white;text-align:center;">
+    {common_header()}
+    <h2>{name}</h2>
+    <p>Price: {data.get('price')}</p>
+    <p>RSI: {data.get('rsi')}</p>
+    <p>Signal: {data.get('signal')}</p>
 
-        <h3>History</h3>
-        {history if history else "<p>No trades</p>"}
+    <h3>📜 History</h3>
+    {history if history else "<p>No trades</p>"}
 
-        <br><a href="/">⬅ Back</a>
-    </body>
-    </html>
+    <a href="/">⬅ Back</a>
+    </body></html>
     """
 
 # 🔹 MAIN
