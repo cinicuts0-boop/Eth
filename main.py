@@ -23,6 +23,19 @@ latest_data = {
 
 trade_history = []
 
+# 🔹 COMMON HEADER for all pages
+def common_header():
+    return """
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
+    <div class="nav">
+        <a href="/">Home</a> | 
+        <a href="/Rules">Contact Us</a> | 
+        <a href="/Tricks">DMCA</a>
+    </div>
+    <hr style="border:1px solid #FFD700; width:80%;">
+    """
+
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -141,21 +154,6 @@ def dashboard():
                 color: #FFD700;
                 text-align: center;
             }}
-            h1 {{ color: #FFD700; }}
-
-            .nav {{
-                margin: 15px 0;
-            }}
-            .nav a {{
-                color: #FFD700;
-                text-decoration: none;
-                margin: 0 12px;
-                font-weight: bold;
-            }}
-            .nav a:hover {{
-                color: #22c55e;
-            }}
-
             .grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -171,27 +169,20 @@ def dashboard():
                 transition: 0.3s;
             }}
             .box:hover {{ transform: scale(1.05); }}
-            p {{ color: #FFD700; }}
             .buy {{ color: #22c55e; }}
             .sell {{ color: #ef4444; }}
             a.box-link {{ text-decoration: none; }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
         </style>
     </head>
     <body>
-        <h1>🚀 Mani Money Mindset 💸</h1>
-        <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
-
-        <!-- 🔹 Navigation Bar -->
-        <div class="nav">
-            <a href="/">Home</a> | 
-            <a href="/contact">Contact Us</a> | 
-            <a href="/dmca">DMCA</a>
-        </div>
-
+        {common_header()}
         <div class="grid">{cards}</div>
     </body>
     </html>
     """
+
 # 🔥 DETAIL PAGE with IST timezone for chart
 @app.route("/coin/<name>")
 def coin_detail(name):
@@ -236,33 +227,31 @@ def coin_detail(name):
                 color: #FFD700;
                 text-decoration: none;
             }}
+            .nav a {{ color: #FFD700; text-decoration: none; margin: 0 12px; font-weight: bold; }}
+            .nav a:hover {{ color: #22c55e; }}
         </style>
     </head>
     <body>
-        <h1>{name} DETAILS</h1>
+        {common_header()}
         <div class="box">
             <p>Price: {data.get('price')}</p>
             <p>RSI: {data.get('rsi')}</p>
             <p>Signal: {data.get('signal')}</p>
         </div>
-
         <div class="box">
             <h3>📊 Performance</h3>
             <p>Accuracy: {accuracy}%</p>
             <p>PnL: {pnl}</p>
         </div>
-
         <div class="box">
             <h3>📈 Chart</h3>
             <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
             width="100%" height="300"></iframe>
         </div>
-
         <div class="box">
             <h3>📜 Trade History</h3>
             {history_html if history_html else "<p>No trades yet.</p>"}
         </div>
-
         <br>
         <a href="/">⬅ Back</a>
     </body>
