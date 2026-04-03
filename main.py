@@ -69,9 +69,9 @@ def get_signal_for(symbol, name):
 
         signal = "WAITING"
 
-        if rsi_val < 35 and macd_val > macd_sig:
+        if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi_val > 65 and macd_val < macd_sig:
+        elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
         # OPTION TEXT
