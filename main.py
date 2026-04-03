@@ -13,9 +13,6 @@ app = Flask(__name__)
 TOKEN = "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M"
 CHAT_ID = "8007854479"
 
-r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", data={"chat_id": CHAT_ID, "text": "Hello"})
-print(r.json())
-
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
