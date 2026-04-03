@@ -1,3 +1,4 @@
+
 import requests
 import time
 import yfinance as yf
@@ -56,15 +57,11 @@ def get_signal_for(symbol, name):
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
-        # 🔹 Adjusted thresholds for more signals
         signal = "WAITING"
         if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
         elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
-
-        # 🔹 Debug print for signals
-        print(f"{name}: Price={price}, RSI={rsi_val:.2f}, MACD={macd_val:.2f}, MACD_SIG={macd_sig:.2f}, Signal={signal}")
 
         option = ""
         if name in ["NIFTY", "BANKNIFTY"]:
@@ -119,7 +116,6 @@ def run_bot():
             print("Bot Error:", e)
             time.sleep(60)
 
-
 # 🔥 HOME PAGE
 @app.route("/")
 def dashboard():
@@ -134,7 +130,6 @@ def dashboard():
             </div>
         </a>
         """
-
     return f"""
     <html>
     <head>
@@ -146,18 +141,13 @@ def dashboard():
                 color: #FFD700;
                 text-align: center;
             }}
-
-            h1 {{
-                color: #FFD700;
-            }}
-
+            h1 {{ color: #FFD700; }}
             .grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
                 gap: 12px;
                 padding: 12px;
             }}
-
             .box {{
                 background: #1e293b;
                 padding: 20px;
@@ -166,43 +156,25 @@ def dashboard():
                 box-shadow: 0 0 10px rgba(255,215,0,0.2);
                 transition: 0.3s;
             }}
-
-            .box:hover {{
-                transform: scale(1.05);
-            }}
-
-            p {{
-                color: #FFD700;
-            }}
-
+            .box:hover {{ transform: scale(1.05); }}
+            p {{ color: #FFD700; }}
             .buy {{ color: #22c55e; }}
             .sell {{ color: #ef4444; }}
-
-            a {{
-                text-decoration: none;
-            }}
+            a {{ text-decoration: none; }}
         </style>
     </head>
-
     <body>
-
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>  ꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂ </h4>
-
-    <div class="grid">
-        {cards}
-    </div>
-
+        <h1>🚀 Mani Money Mindset 💸</h1>
+        <h4>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h4>
+        <div class="grid">{cards}</div>
     </body>
     </html>
     """
 
-
-# 🔥 DETAIL PAGE
+# 🔥 DETAIL PAGE with IST timezone for chart
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
-
     total, wins, loss, pnl, accuracy = calculate_stats()
 
     history_html = "".join([
@@ -219,6 +191,7 @@ def coin_detail(name):
     }
 
     symbol = chart_map.get(name)
+    timezone = "Asia/Kolkata"  # 🕒 IST
 
     return f"""
     <html>
@@ -231,7 +204,6 @@ def coin_detail(name):
                 color: #FFD700;
                 text-align: center;
             }}
-
             .box {{
                 background: #1e293b;
                 padding: 15px;
@@ -239,48 +211,42 @@ def coin_detail(name):
                 margin: 10px;
                 border: 1px solid #FFD700;
             }}
-
             a {{
                 color: #FFD700;
                 text-decoration: none;
             }}
         </style>
     </head>
-
     <body>
+        <h1>{name} DETAILS</h1>
+        <div class="box">
+            <p>Price: {data.get('price')}</p>
+            <p>RSI: {data.get('rsi')}</p>
+            <p>Signal: {data.get('signal')}</p>
+        </div>
 
-    <h1>{name} DETAILS</h1>
+        <div class="box">
+            <h3>📊 Performance</h3>
+            <p>Accuracy: {accuracy}%</p>
+            <p>PnL: {pnl}</p>
+        </div>
 
-    <div class="box">
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
-    </div>
+        <div class="box">
+            <h3>📈 Chart</h3>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark&timezone={timezone}"
+            width="100%" height="300"></iframe>
+        </div>
 
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
-    </div>
+        <div class="box">
+            <h3>📜 Trade History</h3>
+            {history_html if history_html else "<p>No trades yet.</p>"}
+        </div>
 
-    <div class="box">
-        <h3>📈 Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
-        width="100%" height="300"></iframe>
-    </div>
-
-    <div class="box">
-        <h3>📜 Trade History</h3>
-        {history_html}
-    </div>
-
-    <br>
-    <a href="/">⬅ Back</a>
-
+        <br>
+        <a href="/">⬅ Back</a>
     </body>
     </html>
     """
-
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
