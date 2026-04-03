@@ -26,7 +26,7 @@ trade_history = []
 # 🔹 COMMON HEADER for all pages
 def common_header():
     return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h2>🚀 Mani Money Mindset 💸</h2>
     <h5>꧁༺ 💚 எண்ணம் போல் வாழ்க்கை ❤️ ༻꧂</h5>
     <div class="nav">
         <a href="/">Home</a> | 
