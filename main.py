@@ -371,8 +371,6 @@ def tricks_page():
     </html>
     """
 
-
-
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
 def coin_detail(name):
@@ -495,7 +493,6 @@ def coin_detail(name):
     </html>
     """
     
-
 # 🔹 RUN
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
