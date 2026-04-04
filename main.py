@@ -42,11 +42,11 @@ def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
     loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
-    accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
+    pnl = (wins * 20) - (loss * 10)
+    acc = (wins / total * 100) if total > 0 else 0
+    return total, wins, loss, pnl, round(acc, 2)
 
-# 🔹 SIGNAL (IMPROVED)
+# 🔹 SIGNAL
 def get_signal_for(symbol, name):
     global last_signal
 
@@ -59,30 +59,40 @@ def get_signal_for(symbol, name):
         df = df.dropna()
 
         close = df['Close']
+        high = df['High']
+        low = df['Low']
+
+        # 🔥 FIX
         if len(close.shape) > 1:
             close = close.squeeze()
+        if len(high.shape) > 1:
+            high = high.squeeze()
+        if len(low.shape) > 1:
+            low = low.squeeze()
 
-        if len(close) < 30:
+        if len(close) < 50:
             return
 
+        # 🔹 Indicators
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
-
         macd = ta.trend.MACD(close)
         macd_val = macd.macd().iloc[-1]
         macd_sig = macd.macd_signal().iloc[-1]
+
+        ema = close.ewm(span=50).mean().iloc[-1]
 
         price = float(close.iloc[-1])
 
         signal = "WAITING"
 
-        # 🔥 Improved logic (avoid sideways)
+        # 🔥 Improved Strategy
         if 45 < rsi < 55:
             signal = "WAITING"
 
-        elif rsi < 35 and macd_val > macd_sig:
+        elif rsi < 35 and macd_val > macd_sig and price > ema:
             signal = "BUY"
 
-        elif rsi > 65 and macd_val < macd_sig:
+        elif rsi > 65 and macd_val < macd_sig and price < ema:
             signal = "SELL"
 
         latest_data[name] = {
@@ -97,16 +107,16 @@ def get_signal_for(symbol, name):
         if signal != "WAITING":
             last_signal[name] = signal
 
-            # SL + TARGET
-            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
-            target = round(price + 20, 2) if signal == "BUY" else round(price - 20, 2)
+            # 🔹 SL/Target (1:2 RR)
+            sl = price - 10 if signal == "BUY" else price + 10
+            target = price + 20 if signal == "BUY" else price - 20
 
             trade_history.append({
                 "coin": name,
                 "type": signal,
                 "price": round(price, 2),
-                "sl": sl,
-                "target": target,
+                "sl": round(sl, 2),
+                "target": round(target, 2),
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
@@ -115,8 +125,8 @@ def get_signal_for(symbol, name):
 🚀 {name} SIGNAL
 Type: {signal}
 Entry: {price:.2f}
-Target: {target}
-SL: {sl}
+Target: {target:.2f}
+SL: {sl:.2f}
 RSI: {round(rsi,2)}
 """
             send_telegram(msg)
@@ -155,26 +165,28 @@ def run_bot():
         update_results()
         time.sleep(300)
 
-# 🔹 STYLE (MOBILE)
+# 🔹 STYLE (MOBILE FRIENDLY)
 def style():
     return """
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
     body {background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}
-    .nav a {margin:5px;color:#FFD700;text-decoration:none;}
-    .grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:10px;}
-    .card {background:#1e293b;padding:15px;border-radius:10px;}
+    .nav a {margin:5px;color:#FFD700;text-decoration:none;font-size:14px;}
+    .grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:10px;}
+    .card {background:#1e293b;padding:15px;border-radius:12px;}
+    .green {color:#22c55e;}
+    .red {color:#ef4444;}
     </style>
     """
 
 # 🔹 HEADER
 def header():
     return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h2>🚀 Mani Money Mindset</h2>
     <div class="nav">
     <a href="/">Home</a>
     <a href="/signals">Signals</a>
     <a href="/rules">Rules</a>
-    <a href="/tricks">Tricks</a>
     </div><hr>
     """
 
@@ -184,7 +196,7 @@ def home():
     cards = ""
     for coin, d in latest_data.items():
 
-        color = "#FFD700"
+        color = ""
         if d["signal"] == "BUY":
             color = "green"
         elif d["signal"] == "SELL":
@@ -195,41 +207,28 @@ def home():
         <div class="card">
         <h3>{coin}</h3>
         <p>{d['price']}</p>
-        <p style="color:{color}">{d['signal']}</p>
+        <p class="{color}">{d['signal']}</p>
         </div></a>
         """
 
     return f"<html>{style()}<body>{header()}<div class='grid'>{cards}</div></body></html>"
 
-# 🔹 SIGNALS
+# 🔹 SIGNAL PAGE
 @app.route("/signals")
 def signals():
     msgs = "".join([f"<p>{m['time']} → {m['msg']}</p>" for m in telegram_messages[::-1][:50]])
-    return f"<html>{style()}<body>{header()}<h3>Signals</h3>{msgs}</body></html>"
+    return f"<html>{style()}<body>{header()}<h3>📩 Signals</h3>{msgs}</body></html>"
 
 # 🔹 RULES
 @app.route("/rules")
 def rules():
-    return f"<html>{style()}<body>{header()}<p>Trade at your own risk</p></body></html>"
-
-# 🔹 TRICKS
-@app.route("/tricks")
-def tricks():
-    return f"<html>{style()}<body>{header()}<p>Protected content</p></body></html>"
+    return f"<html>{style()}<body>{header()}<p>Trade at your own risk ⚠️</p></body></html>"
 
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
 def coin(name):
     d = latest_data.get(name, {})
     total, wins, loss, pnl, acc = calculate_stats()
-
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
 
     history = "".join([
         f"<p>{t['time']} | {t['type']} → {t['result']}</p>"
@@ -248,13 +247,8 @@ def coin(name):
     <p>Accuracy: {acc}%</p>
     <p>PnL: {pnl}</p>
 
-    <h3>📈 Chart</h3>
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol={chart_map.get(name)}&interval=5&theme=dark"
-    width="100%" height="300"></iframe>
-
     <h3>📜 History</h3>
     {history if history else "No trades"}
-
     </body></html>
     """
 
