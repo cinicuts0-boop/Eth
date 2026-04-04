@@ -8,7 +8,7 @@ app = Flask(__name__)
 def style():
     return """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="10">
+    <meta http-equiv="refresh" content="60">
     <style>
     body {background:black;color:white;text-align:center;}
     </style>
