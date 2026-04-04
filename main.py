@@ -217,21 +217,36 @@ def dashboard():
     <html>
     <head>
     <script>
-let lastAlert = "{last_alert_time}";
-let prevAlert = localStorage.getItem("lastAlert");
+        let lastSignals = {latest_data};
 
-// 🔊 புதிய signal வந்தா மட்டும் sound
-if (lastAlert !== prevAlert && lastAlert !== "") {
-    let audio = new Audio('/static/alert.mp3');
-    audio.play();
-    localStorage.setItem("lastAlert", lastAlert);
-}
+        function checkSignalChange() {{
+            fetch("/")
+            .then(res => res.text())
+            .then(html => {{
+                // simple refresh detect
+                location.reload();
+            }});
+        }}
 
-// auto refresh 60 sec
-setInterval(() => {
-    location.reload();
-}, 60000);
-</script>
+        // 🔊 play sound on load
+        window.onload = function() {{
+            let signals = {latest_data};
+
+            for (let key in signals) {{
+                if (signals[key].signal === "BUY" || signals[key].signal === "SELL") {{
+                    let audio = new Audio('/static/alert.mp3');
+                    audio.play();
+                    break;
+                }}
+            }}
+        }}
+
+        // auto refresh every 60 sec
+        setInterval(() => {{
+            location.reload();
+        }}, 60000);
+    </script>
+
     <style>
     body {{
         background:#0f172a;
@@ -363,7 +378,7 @@ def coin_detail(name):
     <html>
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0">
+    <meta http-equiv="refresh" content="60">
 
     <style>
     body {{
