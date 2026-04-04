@@ -14,5 +14,5 @@ def run_bot():
 
         time.sleep(300)
 
-# 🔥 Railway important
+# 🔥 Railway fix
 threading.Thread(target=run_bot, daemon=True).start()
