@@ -9,8 +9,10 @@ import datetime
 
 app = Flask(__name__)
 
-TOKEN = "YOUR_TOKEN"
-CHAT_ID = "YOUR_CHAT_ID"
+# 🔐 பாதுகாப்புக்கு ENV use பண்ணலாம் (recommended)
+TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
+CHAT_ID = os.getenv("CHAT_ID", "8007854479")
+
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
