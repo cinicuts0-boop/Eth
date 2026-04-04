@@ -25,6 +25,19 @@ telegram_messages = []
 last_signal = {}
 last_signal_time = {}
 
+# 🔹 HEADER
+def common_header():
+    return """
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
+    <div>
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </div>
+    """
+
 # 🔹 TELEGRAM
 def send_telegram(msg):
     try:
@@ -55,7 +68,6 @@ def get_signal_for(symbol, name):
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
         if df is None or df.empty:
             return
-            
 
         close = df['Close'].dropna()
         if len(close) < 30:
@@ -73,9 +85,9 @@ def get_signal_for(symbol, name):
 
         signal = "WAITING"
 
-        if rsi < 40 and macd_val > macd_sig:
+        if rsi < 35 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi > 60 and macd_val < macd_sig:
+        elif rsi > 65 and macd_val < macd_sig:
             signal = "SELL"
 
         latest_data[name] = {
@@ -150,18 +162,6 @@ def run_bot():
         except Exception as e:
             print("BOT ERROR:", e)
             time.sleep(60)
-            
-def common_header():
-    return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
-    <div>
-        <a href="/">Home</a> |
-        <a href="/signals">Signals</a> |
-        <a href="/rules">Rules</a> |
-        <a href="/tricks">Tricks</a>
-    </div>
-    """
 
 # 🔹 HOME PAGE
 @app.route("/")
@@ -200,33 +200,11 @@ def dashboard():
 
     <body>
 
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
-
-    <div>
-        <a href="/">Home</a> | 
-        <a href="/signals">Signals</a> | 
-        <a href="/rules">Rules</a> | 
-        <a href="/tricks">Tricks</a>
-    </div>
+    {common_header()}
 
     <div class="grid">
     {cards}
     </div>
-
-    <!-- SOUND -->
-    <audio id="sound" src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3"></audio>
-    <script>
-let lastData="";
-setInterval(()=>{{
-    fetch("/").then(r=>r.text()).then(d=>{{
-        if(d!==lastData && (d.includes("BUY")||d.includes("SELL"))){{
-            document.getElementById("sound").play();
-            lastData=d;
-        }}
-    }});
-}},10000);
-</script>
 
     </body>
     </html>
@@ -254,209 +232,64 @@ def signals_page():
     </html>
     """
 
-  # 🔹 RULES PAGE
+# 🔹 RULES PAGE
 @app.route("/rules")
 def rules_page():
     return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                margin: 10px auto;
-                width: 90%;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>
-        {common_header()}
-        <div class="box">
-            <h3>📜 Contact / Rules</h3>
-            <p>For any queries, contact Mani via Telegram or email.</p>
-            <p>All trading signals are educational; trade at your own risk.</p>
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
+    <html><body style="background:#0f172a;color:#FFD700;text-align:center;">
+    {common_header()}
+    <p>Trade at your own risk</p>
+    <a href="/">⬅ Back</a>
+    </body></html>
     """
 
-# 🔹 TRICKS / DMCA PAGE
+# 🔹 TRICKS PAGE
 @app.route("/tricks")
 def tricks_page():
     return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                margin: 10px auto;
-                width: 90%;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>{common_header()}
-        <div class="box">
-            <h3>🛡️ DMCA / Tricks</h3>
-            <p>All content on this website is protected. Please respect copyrights.</p>
-            <p>Do not copy or redistribute without permission.</p>
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
+    <html><body style="background:#0f172a;color:#FFD700;text-align:center;">
+    {common_header()}
+    <p>Protected content</p>
+    <a href="/">⬅ Back</a>
+    </body></html>
     """
 
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
-    total, wins, loss, pnl, accuracy = calculate_stats()
+    _, _, _, pnl, acc = calculate_stats()
 
-    history = "".join([
-        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
-
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
+    chart = {
+        "ETH":"BINANCE:ETHUSDT",
+        "BTC":"BINANCE:BTCUSDT",
+        "NIFTY":"NSE:NIFTY",
+        "BANKNIFTY":"NSE:BANKNIFTY",
+        "CRUDE":"NYMEX:CL1!"
     }
-
-    symbol = chart_map.get(name)
 
     return f"""
     <html>
-    <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="60">
+    <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="background:#0f172a;color:#FFD700;text-align:center;">
+    {common_header()}
 
-    <style>
-    body {{
-        background:#0f172a;
-        color:#FFD700;
-        font-family: Arial;
-        margin:0;
-        text-align:center;
-    }}
+    <h2>{name}</h2>
+    <p>Price: {data.get('price')}</p>
+    <p>RSI: {data.get('rsi')}</p>
+    <p>Signal: {data.get('signal')}</p>
 
-    h1 {{ font-size:20px; }}
-    h2 {{ font-size:18px; }}
-    p {{ font-size:14px; }}
+    <p>Accuracy: {acc}%</p>
+    <p>PnL: {pnl}</p>
 
-    .nav {{
-        margin:10px;
-        font-size:14px;
-    }}
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol={chart.get(name)}&interval=5&theme=dark"
+    width="100%" height="250"></iframe>
 
-    .nav a {{
-        padding:6px;
-        color:#FFD700;
-        text-decoration:none;
-    }}
-
-    .box {{
-        background:#1e293b;
-        margin:10px;
-        padding:15px;
-        border-radius:15px;
-        border:1px solid #FFD700;
-    }}
-
-    iframe {{
-        width:100%;
-        height:250px;
-        border:none;
-    }}
-
-    a {{
-        color:#FFD700;
-        text-decoration:none;
-        font-size:14px;
-    }}
-
-    @media (max-width:600px) {{
-        h1 {{ font-size:18px; }}
-        h2 {{ font-size:16px; }}
-        p {{ font-size:13px; }}
-        iframe {{ height:220px; }}
-    }}
-    </style>
-    </head>
-
-    <body>
-
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
-
-    <div class="nav">
-        <a href="/">Home</a> |
-        <a href="/signals">Signals</a> |
-        <a href="/rules">Rules</a> |
-        <a href="/tricks">Tricks</a>
-    </div>
-
-    <div class="box">
-        <h2>{name}</h2>
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
-    </div>
-
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
-    </div>
-
-    <div class="box">
-        <h3>📈 Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
-    </div>
-
-    <div class="box">
-        <h3>📜 History</h3>
-        {history if history else "<p>No trades</p>"}
-    </div>
-
-    <br>
-    <a href="/">⬅ Back</a>
-
+    <br><a href="/">⬅ Back</a>
     </body>
     </html>
     """
-    
+
 # 🔹 RUN
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
