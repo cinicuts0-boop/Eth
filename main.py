@@ -137,18 +137,31 @@ def update_results():
 # 🔹 BOT LOOP
 def run_bot():
     while True:
-        get_signal_for("ETH-USD", "ETH")
-        get_signal_for("BTC-USD", "BTC")
-        get_signal_for("^NSEI", "NIFTY")
-        get_signal_for("^NSEBANK", "BANKNIFTY")
-        get_signal_for("CL=F", "CRUDE")
+        try:
+            get_signal_for("ETH-USD", "ETH")
+            get_signal_for("BTC-USD", "BTC")
+            get_signal_for("^NSEI", "NIFTY")
+            get_signal_for("^NSEBANK", "BANKNIFTY")
+            get_signal_for("CL=F", "CRUDE")
 
-        update_results()
-        time.sleep(300)
-        
-    except Exception as e:
-        print("BOT ERROR:", e)
-        time.sleep(60)
+            update_results()
+            time.sleep(300)
+
+        except Exception as e:
+            print("BOT ERROR:", e)
+            time.sleep(60)
+            
+def common_header():
+    return """
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
+    <div>
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </div>
+    """
 
 # 🔹 HOME PAGE
 @app.route("/")
@@ -237,55 +250,6 @@ def signals_page():
     <h2>📩 Signals</h2>
     {msgs}
     <a href="/">⬅ Back</a>
-    </body>
-    </html>
-    """
-
-# 🔹 HOME (GOLD UI)
-@app.route("/")
-def dashboard():
-    cards = ""
-    for coin, data in latest_data.items():
-
-        color = "#FFD700"
-        if data["signal"] == "BUY":
-            color = "#22c55e"
-        elif data["signal"] == "SELL":
-            color = "#ef4444"
-
-        cards += f"""
-        <a href="/coin/{coin}">
-        <div class="box">
-        <h3>{coin}</h3>
-        <p>{data['price']}</p>
-        <p style="color:{color}">{data['signal']}</p>
-        </div>
-        </a>
-        """
-
-    return f"""
-    <html>
-    <head>
-    <style>
-    body {{
-        background:#0f172a;
-        color:#FFD700;
-        text-align:center;
-        font-family:Arial;
-    }}
-    .box {{
-        background:#1e293b;
-        padding:20px;
-        margin:10px;
-        border-radius:15px;
-        border:1px solid #FFD700;
-    }}
-    a {{text-decoration:none;color:#FFD700;}}
-    </style>
-    </head>
-    <body>
-    {common_header()}
-    {cards}
     </body>
     </html>
     """
