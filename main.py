@@ -343,26 +343,101 @@ def coin_detail(name):
 
     return f"""
     <html>
-    <body style="background:#0f172a;color:#FFD700;text-align:center;">
-    {common_header()}
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="10">
 
-    <h2>{name}</h2>
-    <p>Price: {data.get('price')}</p>
-    <p>RSI: {data.get('rsi')}</p>
-    <p>Signal: {data.get('signal')}</p>
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        font-family: Arial;
+        margin:0;
+        text-align:center;
+    }}
 
-    <h3>📊 Performance</h3>
-    <p>Accuracy: {accuracy}%</p>
-    <p>PnL: {pnl}</p>
+    h1 {{ font-size:20px; }}
+    h2 {{ font-size:18px; }}
+    p {{ font-size:14px; }}
 
-    <h3>📈 Chart</h3>
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"
-    width="100%" height="300"></iframe>
+    .nav {{
+        margin:10px;
+        font-size:14px;
+    }}
 
-    <h3>📜 History</h3>
-    {history if history else "<p>No trades</p>"}
+    .nav a {{
+        padding:6px;
+        color:#FFD700;
+        text-decoration:none;
+    }}
 
+    .box {{
+        background:#1e293b;
+        margin:10px;
+        padding:15px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+
+    iframe {{
+        width:100%;
+        height:250px;
+        border:none;
+    }}
+
+    a {{
+        color:#FFD700;
+        text-decoration:none;
+        font-size:14px;
+    }}
+
+    @media (max-width:600px) {{
+        h1 {{ font-size:18px; }}
+        h2 {{ font-size:16px; }}
+        p {{ font-size:13px; }}
+        iframe {{ height:220px; }}
+    }}
+    </style>
+    </head>
+
+    <body>
+
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
+
+    <div class="nav">
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </div>
+
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}%</p>
+        <p>PnL: {pnl}</p>
+    </div>
+
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+
+    <div class="box">
+        <h3>📜 History</h3>
+        {history if history else "<p>No trades</p>"}
+    </div>
+
+    <br>
     <a href="/">⬅ Back</a>
+
     </body>
     </html>
     """
