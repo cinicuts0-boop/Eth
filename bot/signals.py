@@ -22,10 +22,16 @@ def get_signal_for(symbol, name):
         df = df.dropna()
         close = df['Close']
 
+# ✅ FIX (IMPORTANT)
+if hasattr(close, "shape") and len(close.shape) > 1:
+    close = close.squeeze()
+
+close = close.astype(float)
+
         if len(close) < 30:
             return
 
-        price = float(close.iloc[-1])
+        price = float(close.iloc[-1].item())
 
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
