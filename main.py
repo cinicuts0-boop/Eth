@@ -46,7 +46,7 @@ def calculate_stats():
     accuracy = (wins / total * 100) if total > 0 else 0
     return total, wins, loss, pnl, round(accuracy, 2)
 
-# 🔹 SIGNAL (PRO VERSION)
+# 🔹 SIGNAL (PRO)
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal
 
@@ -65,17 +65,13 @@ def get_signal_for(symbol, name):
         low = df['Low']
         volume = df['Volume']
 
-        # ✅ FIX 1D
-        if len(close.shape) > 1:
-            close = close.squeeze()
-        if len(high.shape) > 1:
-            high = high.squeeze()
-        if len(low.shape) > 1:
-            low = low.squeeze()
-        if len(volume.shape) > 1:
-            volume = volume.squeeze()
+        # FIX 1D
+        if len(close.shape) > 1: close = close.squeeze()
+        if len(high.shape) > 1: high = high.squeeze()
+        if len(low.shape) > 1: low = low.squeeze()
+        if len(volume.shape) > 1: volume = volume.squeeze()
 
-        # 🔹 INDICATORS
+        # INDICATORS
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
         macd = ta.trend.MACD(close)
@@ -87,55 +83,36 @@ def get_signal_for(symbol, name):
 
         price = close.iloc[-1]
 
-        # 🔹 VOLUME CONFIRM
         vol_avg = volume.rolling(20).mean().iloc[-1]
         volume_ok = volume.iloc[-1] > vol_avg
 
-        # 🔹 ATR (SMART SL)
         atr = ta.volatility.AverageTrueRange(
             high=high, low=low, close=close
         ).average_true_range().iloc[-1]
 
-        # 🔥 SIGNAL LOGIC
         signal = "WAITING"
 
-        # ❌ SIDEWAYS FILTER
         if 45 < rsi < 55:
             signal = "WAITING"
 
-        # ✅ BUY
-        elif (
-            rsi < 35 and
-            macd_val > macd_sig and
-            price > ema20 > ema50 and
-            volume_ok
-        ):
+        elif rsi < 35 and macd_val > macd_sig and price > ema20 > ema50 and volume_ok:
             signal = "BUY"
 
-        # ✅ SELL
-        elif (
-            rsi > 65 and
-            macd_val < macd_sig and
-            price < ema20 < ema50 and
-            volume_ok
-        ):
+        elif rsi > 65 and macd_val < macd_sig and price < ema20 < ema50 and volume_ok:
             signal = "SELL"
 
-        # 🔹 SAVE
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi, 2),
             "signal": signal
         }
 
-        # 🔁 Duplicate avoid
         if signal == last_signal.get(name):
             return
 
         if signal != "WAITING":
             last_signal[name] = signal
 
-            # 🔥 SL / TARGET
             if signal == "BUY":
                 sl = round(price - atr, 2)
                 target = round(price + (atr * 2), 2)
@@ -170,64 +147,126 @@ RSI: {round(rsi,2)}
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
-
-            current_price = latest_data.get(trade["coin"], {}).get("price", 0)
-            if current_price == 0:
-                continue
+            price = latest_data.get(trade["coin"], {}).get("price", 0)
 
             if trade["type"] == "BUY":
-                if current_price >= trade["target"]:
+                if price >= trade["target"]:
                     trade["result"] = "WIN ✅"
-                elif current_price <= trade["sl"]:
+                elif price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
 
-            elif trade["type"] == "SELL":
-                if current_price <= trade["target"]:
+            if trade["type"] == "SELL":
+                if price <= trade["target"]:
                     trade["result"] = "WIN ✅"
-                elif current_price >= trade["sl"]:
+                elif price >= trade["sl"]:
                     trade["result"] = "LOSS ❌"
 
-# 🔹 BOT LOOP
+# 🔹 LOOP
 def run_bot():
     while True:
-        try:
-            get_signal_for("ETH-USD", "ETH")
-            get_signal_for("BTC-USD", "BTC")
-            get_signal_for("^NSEI", "NIFTY")
-            get_signal_for("^NSEBANK", "BANKNIFTY")
-            get_signal_for("CL=F", "CRUDE")
+        get_signal_for("ETH-USD", "ETH")
+        get_signal_for("BTC-USD", "BTC")
+        get_signal_for("^NSEI", "NIFTY")
+        get_signal_for("^NSEBANK", "BANKNIFTY")
+        get_signal_for("CL=F", "CRUDE")
 
-            update_results()
-            time.sleep(300)
+        update_results()
+        time.sleep(300)
 
-        except Exception as e:
-            print("BOT ERROR:", e)
-            time.sleep(60)
+# 🔹 HEADER
+def header():
+    return """
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <div class="nav">
+        <a href="/">Home</a>
+        <a href="/signals">Signals</a>
+        <a href="/rules">Rules</a>
+        <a href="/tricks">Tricks</a>
+    </div>
+    """
 
-# 🔹 SIMPLE DASHBOARD
+# 🔹 STYLE (MOBILE FRIENDLY)
+def style():
+    return """
+    <style>
+    body {
+        background:#0f172a;
+        color:#FFD700;
+        font-family:Arial;
+        text-align:center;
+        margin:0;
+    }
+    .nav a {
+        margin:5px;
+        color:#FFD700;
+        text-decoration:none;
+        font-size:14px;
+    }
+    .grid {
+        display:grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+        gap:10px;
+        padding:10px;
+    }
+    .card {
+        background:#1e293b;
+        padding:15px;
+        border-radius:12px;
+    }
+    </style>
+    """
+
+# 🔹 HOME
 @app.route("/")
 def home():
     cards = ""
     for coin, d in latest_data.items():
         color = "#FFD700"
-        if d["signal"] == "BUY":
-            color = "#22c55e"
-        elif d["signal"] == "SELL":
-            color = "#ef4444"
+        if d["signal"] == "BUY": color = "green"
+        elif d["signal"] == "SELL": color = "red"
 
         cards += f"""
-        <div style='background:#1e293b;padding:15px;margin:10px;border-radius:10px'>
-        <h2>{coin}</h2>
+        <div class="card">
+        <h3>{coin}</h3>
         <p>{d['price']}</p>
-        <p style='color:{color}'>{d['signal']}</p>
+        <p style="color:{color}">{d['signal']}</p>
         </div>
         """
 
+    return f"<html>{style()}<body>{header()}<div class='grid'>{cards}</div></body></html>"
+
+# 🔹 SIGNALS
+@app.route("/signals")
+def signals():
+    msgs = "".join([f"<p>{m['time']} → {m['msg']}</p>" for m in telegram_messages[::-1][:50]])
+    return f"<html>{style()}<body>{header()}<h3>Signals</h3>{msgs}</body></html>"
+
+# 🔹 RULES
+@app.route("/rules")
+def rules():
+    return f"<html>{style()}<body>{header()}<p>Trade at your own risk</p></body></html>"
+
+# 🔹 TRICKS
+@app.route("/tricks")
+def tricks():
+    return f"<html>{style()}<body>{header()}<p>Protected content</p></body></html>"
+
+# 🔹 COIN PAGE
+@app.route("/coin/<name>")
+def coin(name):
+    d = latest_data.get(name, {})
+    total, wins, loss, pnl, acc = calculate_stats()
+
     return f"""
-    <body style="background:#0f172a;color:#FFD700;text-align:center">
-    <h1>🚀 Mani Money Mindset</h1>
-    {cards}
-    </body>
+    <html>{style()}
+    <body>{header()}
+    <h2>{name}</h2>
+    <p>Price: {d.get('price')}</p>
+    <p>RSI: {d.get('rsi')}</p>
+    <p>Signal: {d.get('signal')}</p>
+    <p>Accuracy: {acc}%</p>
+    <p>PnL: {pnl}</p>
+    </body></html>
     """
 
 # 🔹 MAIN
