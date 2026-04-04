@@ -196,16 +196,16 @@ def dashboard():
     <!-- SOUND -->
     <audio id="sound" src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3"></audio>
     <script>
-    let lastData="";
-    setInterval(()=>{
-        fetch("/").then(r=>r.text()).then(d=>{
-            if(d!==lastData && (d.includes("BUY")||d.includes("SELL"))){
-                document.getElementById("sound").play();
-                lastData=d;
-            }
-        });
-    },10000);
-    </script>
+let lastData="";
+setInterval(()=>{{
+    fetch("/").then(r=>r.text()).then(d=>{{
+        if(d!==lastData && (d.includes("BUY")||d.includes("SELL"))){{
+            document.getElementById("sound").play();
+            lastData=d;
+        }}
+    }});
+}},10000);
+</script>
 
     </body>
     </html>
