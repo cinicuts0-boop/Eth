@@ -24,9 +24,6 @@ trade_history = []
 telegram_messages = []
 last_signal = {}
 
-# 🔊 NEW (sound alert tracking)
-last_alert_time = ""
-
 # 🔹 TELEGRAM
 def send_telegram(msg):
     try:
@@ -51,7 +48,7 @@ def calculate_stats():
 
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
-    global latest_data, trade_history, last_signal, last_alert_time
+    global latest_data, trade_history, last_signal
 
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
@@ -96,9 +93,6 @@ def get_signal_for(symbol, name):
 
         if signal != "WAITING":
             last_signal[name] = signal
-
-            # 🔊 update alert time
-            last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
 
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
@@ -196,13 +190,14 @@ def signals_page():
     </body></html>
     """
 
-# 🔹 HOME (UPDATED WITH SOUND)
+# 🔹 HOME (GOLD UI)
 @app.route("/")
 def dashboard():
     cards = ""
-    for coin, data in latest_data.items():
 
+    for coin, data in latest_data.items():
         color = "#FFD700"
+
         if data["signal"] == "BUY":
             color = "#22c55e"
         elif data["signal"] == "SELL":
@@ -221,20 +216,35 @@ def dashboard():
     return f"""
     <html>
     <head>
-
     <script>
-    let lastAlert = "{last_alert_time}";
-    let prevAlert = localStorage.getItem("lastAlert");
+        let lastSignals = {latest_data};
 
-    if (lastAlert !== prevAlert && lastAlert !== "") {{
-        let audio = new Audio('/static/alert.mp3');
-        audio.play();
-        localStorage.setItem("lastAlert", lastAlert);
-    }}
+        function checkSignalChange() {{
+            fetch("/")
+            .then(res => res.text())
+            .then(html => {{
+                // simple refresh detect
+                location.reload();
+            }});
+        }}
 
-    setInterval(() => {{
-        location.reload();
-    }}, 60000);
+        // 🔊 play sound on load
+        window.onload = function() {{
+            let signals = {latest_data};
+
+            for (let key in signals) {{
+                if (signals[key].signal === "BUY" || signals[key].signal === "SELL") {{
+                    let audio = new Audio('/static/alert.mp3');
+                    audio.play();
+                    break;
+                }}
+            }}
+        }}
+
+        // auto refresh every 60 sec
+        setInterval(() => {{
+            location.reload();
+        }}, 60000);
     </script>
 
     <style>
@@ -251,15 +261,220 @@ def dashboard():
         border-radius:15px;
         border:1px solid #FFD700;
     }}
-    a {{text-decoration:none;color:#FFD700;}}
+    a {{color:#FFD700;text-decoration:none;}}
     </style>
     </head>
+
     <body>
     {common_header()}
     {cards}
     </body>
     </html>
     """
+
+  # 🔹 RULES PAGE
+@app.route("/rules")
+def rules_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h3>📜 Contact / Rules</h3>
+            <p>For any queries, contact Mani via Telegram or email.</p>
+            <p>All trading signals are educational; trade at your own risk.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+# 🔹 TRICKS / DMCA PAGE
+@app.route("/tricks")
+def tricks_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>{common_header()}
+        <div class="box">
+            <h3>🛡️ DMCA / Tricks</h3>
+            <p>All content on this website is protected. Please respect copyrights.</p>
+            <p>Do not copy or redistribute without permission.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+# 🔹 COIN PAGE
+@app.route("/coin/<name>")
+def coin_detail(name):
+    data = latest_data.get(name, {})
+    total, wins, loss, pnl, accuracy = calculate_stats()
+
+    history = "".join([
+        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
+
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
+
+    symbol = chart_map.get(name)
+
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
+
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        font-family: Arial;
+        margin:0;
+        text-align:center;
+    }}
+
+    h1 {{ font-size:20px; }}
+    h2 {{ font-size:18px; }}
+    p {{ font-size:14px; }}
+
+    .nav {{
+        margin:10px;
+        font-size:14px;
+    }}
+
+    .nav a {{
+        padding:6px;
+        color:#FFD700;
+        text-decoration:none;
+    }}
+
+    .box {{
+        background:#1e293b;
+        margin:10px;
+        padding:15px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+
+    iframe {{
+        width:100%;
+        height:250px;
+        border:none;
+    }}
+
+    a {{
+        color:#FFD700;
+        text-decoration:none;
+        font-size:14px;
+    }}
+
+    @media (max-width:600px) {{
+        h1 {{ font-size:18px; }}
+        h2 {{ font-size:16px; }}
+        p {{ font-size:13px; }}
+        iframe {{ height:220px; }}
+    }}
+    </style>
+    </head>
+
+    <body>
+
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
+
+    <div class="nav">
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </div>
+
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}%</p>
+        <p>PnL: {pnl}</p>
+    </div>
+
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+
+    <div class="box">
+        <h3>📜 History</h3>
+        {history if history else "<p>No trades</p>"}
+    </div>
+
+    <br>
+    <a href="/">⬅ Back</a>
+
+    </body>
+    </html>
+    """
+    
 
 # 🔹 MAIN
 if __name__ == "__main__":
