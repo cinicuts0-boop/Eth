@@ -1,4 +1,5 @@
-flask
-requests
 yfinance
 ta
+requests
+pandas
+flask
