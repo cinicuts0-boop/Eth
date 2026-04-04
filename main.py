@@ -80,10 +80,10 @@ def get_signal_for(symbol, name):
         if 45 < rsi < 55:
             signal = "WAITING"
 
-        elif rsi < 35 and macd_val > macd_sig:
+        elif rsi < 40 and macd_val > macd_sig:
             signal = "BUY"
 
-        elif rsi > 65 and macd_val < macd_sig:
+        elif rsi > 60 and macd_val < macd_sig:
             signal = "SELL"
 
         latest_data[name] = {
@@ -144,7 +144,7 @@ def update_results():
                 elif price >= trade["sl"]:
                     trade["result"] = "LOSS ❌"
 
-# 🔹 LOOP
+# 🔹BUT LOOP
 def run_bot():
     while True:
         get_signal_for("ETH-USD", "ETH")
@@ -155,6 +155,10 @@ def run_bot():
 
         update_results()
         time.sleep(300)
+
+    except Exception as e:
+        print("BOT ERROR:", e)
+        time.sleep(60)
 
 # 🔹 STYLE (MOBILE)
 def style():
@@ -180,45 +184,141 @@ def header():
     </div><hr>
     """
 
-# 🔹 HOME
+# 🔹 HOME (GOLD UI)
 @app.route("/")
-def home():
+def dashboard():
     cards = ""
-    for coin, d in latest_data.items():
+    for coin, data in latest_data.items():
 
         color = "#FFD700"
-        if d["signal"] == "BUY":
-            color = "green"
-        elif d["signal"] == "SELL":
-            color = "red"
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
 
         cards += f"""
         <a href="/coin/{coin}">
-        <div class="card">
+        <div class="box">
         <h3>{coin}</h3>
-        <p>{d['price']}</p>
-        <p style="color:{color}">{d['signal']}</p>
-        </div></a>
+        <p>{data['price']}</p>
+        <p style="color:{color}">{data['signal']}</p>
+        </div>
+        </a>
         """
 
-    return f"<html>{style()}<body>{header()}<div class='grid'>{cards}</div></body></html>"
-
+    return f"""
+    <html>
+    <head>
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        text-align:center;
+        font-family:Arial;
+    }}
+    .box {{
+        background:#1e293b;
+        padding:20px;
+        margin:10px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+    a {{text-decoration:none;color:#FFD700;}}
+    </style>
+    </head>
+    <body>
+    {common_header()}
+    {cards}
+    </body>
+    </html>
+    """
 # 🔹 SIGNALS
 @app.route("/signals")
 def signals():
     msgs = "".join([f"<p>{m['time']} → {m['msg']}</p>" for m in telegram_messages[::-1][:50]])
     return f"<html>{style()}<body>{header()}<h3>Signals</h3>{msgs}</body></html>"
 
-# 🔹 RULES
+
+  # 🔹 RULES PAGE
 @app.route("/rules")
-def rules():
-    return f"<html>{style()}<body>{header()}<p>Trade at your own risk</p></body></html>"
+def rules_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h3>📜 Contact / Rules</h3>
+            <p>For any queries, contact Mani via Telegram or email.</p>
+            <p>All trading signals are educational; trade at your own risk.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
 
-# 🔹 TRICKS
+# 🔹 TRICKS / DMCA PAGE
 @app.route("/tricks")
-def tricks():
-    return f"<html>{style()}<body>{header()}<p>Protected content</p></body></html>"
-
+def tricks_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>{common_header()}
+        <div class="box">
+            <h3>🛡️ DMCA / Tricks</h3>
+            <p>All content on this website is protected. Please respect copyrights.</p>
+            <p>Do not copy or redistribute without permission.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
 def coin(name):
