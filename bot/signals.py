@@ -22,16 +22,16 @@ def get_signal_for(symbol, name):
         df = df.dropna()
         close = df['Close']
 
-# ✅ FIX (IMPORTANT)
-if hasattr(close, "shape") and len(close.shape) > 1:
-    close = close.squeeze()
+        # ✅ FIX SHAPE ISSUE
+        if hasattr(close, "shape") and len(close.shape) > 1:
+            close = close.squeeze()
 
-close = close.astype(float)
+        close = close.astype(float)
 
         if len(close) < 30:
             return
 
-        price = float(close.iloc[-1].item())
+        price = float(close.iloc[-1])
 
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
@@ -75,5 +75,6 @@ close = close.astype(float)
             })
 
             send_telegram(f"{name} → {signal} @ {price}")
+
     except Exception as e:
         print(name, "ERROR:", e)
