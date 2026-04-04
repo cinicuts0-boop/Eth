@@ -6,7 +6,11 @@ from bot.telegram import send_telegram
 from bot.stats import trade_history
 
 latest_data = {
-    "ETH": {}, "BTC": {}, "NIFTY": {}, "BANKNIFTY": {}, "CRUDE": {}
+    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
 last_signal = {}
