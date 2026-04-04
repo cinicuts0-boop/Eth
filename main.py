@@ -13,11 +13,11 @@ TOKEN = "YOUR_TOKEN"
 CHAT_ID = "YOUR_CHAT_ID"
 
 latest_data = {
-    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
+    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING", "prediction": ""},
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING", "prediction": ""},
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING", "prediction": ""},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING", "prediction": ""},
+    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING", "prediction": ""}
 }
 
 trade_history = []
@@ -45,7 +45,22 @@ def calculate_stats():
     accuracy = (wins / total * 100) if total > 0 else 0
     return total, wins, loss, pnl, round(accuracy, 2)
 
-# 🔹 SIGNAL (UPGRADED BUT SAFE)
+# 🔹 AI TREND
+def get_ai_prediction(close):
+    try:
+        ema20 = close.ewm(span=20).mean().iloc[-1]
+        ema50 = close.ewm(span=50).mean().iloc[-1]
+
+        if ema20 > ema50:
+            return "📈 UP TREND"
+        elif ema20 < ema50:
+            return "📉 DOWN TREND"
+        else:
+            return "⚖️ SIDEWAYS"
+    except:
+        return "N/A"
+
+# 🔹 SIGNAL
 def get_signal_for(symbol, name):
     global last_signal
 
@@ -56,44 +71,38 @@ def get_signal_for(symbol, name):
             return
 
         df = df.dropna()
-
         close = df['Close']
-        volume = df['Volume']
 
         if len(close.shape) > 1:
             close = close.squeeze()
 
-        if len(close) < 50:
+        if len(close) < 30:
             return
 
         price = float(close.iloc[-1])
 
-        # Indicators
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
         macd = ta.trend.MACD(close)
         macd_val = macd.macd().iloc[-1]
         macd_sig = macd.macd_signal().iloc[-1]
 
-        ema50 = close.ewm(span=50).mean().iloc[-1]
-
-        avg_vol = volume.rolling(20).mean().iloc[-1]
+        prediction = get_ai_prediction(close)
 
         signal = "WAITING"
 
-        # 🔥 balanced logic (not too strict)
-        if volume.iloc[-1] > avg_vol:
-
-            if rsi < 38 and macd_val > macd_sig and price > ema50:
-                signal = "BUY"
-
-            elif rsi > 62 and macd_val < macd_sig and price < ema50:
-                signal = "SELL"
+        if 45 < rsi < 55:
+            signal = "WAITING"
+        elif rsi < 35 and macd_val > macd_sig:
+            signal = "BUY"
+        elif rsi > 65 and macd_val < macd_sig:
+            signal = "SELL"
 
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi, 2),
-            "signal": signal
+            "signal": signal,
+            "prediction": prediction
         }
 
         if signal == last_signal.get(name):
@@ -123,22 +132,22 @@ def get_signal_for(symbol, name):
 
 # 🔹 RESULT UPDATE
 def update_results():
-    for trade in trade_history:
-        if trade["result"] == "OPEN":
+    for t in trade_history:
+        if t["result"] == "OPEN":
 
-            price = latest_data.get(trade["coin"], {}).get("price", 0)
+            price = latest_data.get(t["coin"], {}).get("price", 0)
 
-            if trade["type"] == "BUY":
-                if price >= trade["target"]:
-                    trade["result"] = "WIN ✅"
-                elif price <= trade["sl"]:
-                    trade["result"] = "LOSS ❌"
+            if t["type"] == "BUY":
+                if price >= t["target"]:
+                    t["result"] = "WIN ✅"
+                elif price <= t["sl"]:
+                    t["result"] = "LOSS ❌"
 
-            elif trade["type"] == "SELL":
-                if price <= trade["target"]:
-                    trade["result"] = "WIN ✅"
-                elif price >= trade["sl"]:
-                    trade["result"] = "LOSS ❌"
+            elif t["type"] == "SELL":
+                if price <= t["target"]:
+                    t["result"] = "WIN ✅"
+                elif price >= t["sl"]:
+                    t["result"] = "LOSS ❌"
 
 # 🔹 LOOP
 def run_bot():
@@ -152,17 +161,19 @@ def run_bot():
         update_results()
         time.sleep(300)
 
-# 🔹 MOBILE FIX (ONLY ADD THIS)
+# 🔹 STYLE (MOBILE + AUTO REFRESH)
 def style():
     return """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="10">
     <style>
     body {background:black;color:white;text-align:center;font-family:Arial;}
     a {text-decoration:none;color:white;}
+    iframe {border:none;border-radius:10px;}
     </style>
     """
 
-# 🔹 HEADER SAME
+# 🔹 HEADER
 def common_header():
     return """
     <h2>🚀 Trading Dashboard</h2>
@@ -173,7 +184,7 @@ def common_header():
     <hr>
     """
 
-# 🔹 HOME (UNCHANGED STYLE)
+# 🔹 HOME
 @app.route("/")
 def dashboard():
     cards = ""
@@ -184,13 +195,14 @@ def dashboard():
         <h3>{coin}</h3>
         <p>Price: {data['price']}</p>
         <p>Signal: {data['signal']}</p>
+        <p>{data.get('prediction','')}</p>
         </div>
         </a>
         """
 
     return f"<html>{style()}<body>{common_header()}{cards}</body></html>"
 
-# 🔹 SIGNAL PAGE
+# 🔹 SIGNALS
 @app.route("/signals")
 def signals_page():
     msgs = "".join([
@@ -200,11 +212,29 @@ def signals_page():
 
     return f"<html>{style()}<body>{common_header()}<h3>Signals</h3>{msgs}</body></html>"
 
+# 🔹 RULES
+@app.route("/rules")
+def rules():
+    return f"<html>{style()}<body>{common_header()}<p>Trade at your own risk</p></body></html>"
+
+# 🔹 TRICKS
+@app.route("/tricks")
+def tricks():
+    return f"<html>{style()}<body>{common_header()}<p>Protected content</p></body></html>"
+
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, acc = calculate_stats()
+
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
 
     history = "".join([
         f"<p>{t['time']} | {t['type']} → {t['result']}</p>"
@@ -214,17 +244,24 @@ def coin_detail(name):
     return f"""
     <html>{style()}
     <body>{common_header()}
+
     <h2>{name}</h2>
     <p>Price: {data.get('price')}</p>
     <p>RSI: {data.get('rsi')}</p>
     <p>Signal: {data.get('signal')}</p>
+    <p>{data.get('prediction')}</p>
 
-    <h3>Performance</h3>
+    <h3>📊 Performance</h3>
     <p>Accuracy: {acc}%</p>
     <p>PnL: {pnl}</p>
 
-    <h3>History</h3>
+    <h3>📈 Live Chart</h3>
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol={chart_map.get(name)}&interval=5&theme=dark"
+    width="100%" height="300"></iframe>
+
+    <h3>📜 History</h3>
     {history if history else "No trades"}
+
     </body></html>
     """
 
@@ -232,3 +269,4 @@ def coin_detail(name):
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     app.run(host="0.0.0.0", port=8080)
+    
