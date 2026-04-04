@@ -13,5 +13,6 @@ def send_telegram(msg):
             "msg": msg,
             "time": datetime.datetime.now().strftime("%H:%M:%S")
         })
+
     except Exception as e:
         print("Telegram Error:", e)
