@@ -40,12 +40,24 @@ def home():
         </div>
         """
 
-    return f"""
-    <html>
-    {style()}
-    <body>
-    <h2>🚀 Trading Dashboard</h2>
-    {cards}
-    </body>
-    </html>
+   return f"""
+    <html>{style()}
+    <body>{header()}
+    <h2>{name}</h2>
+    <p>Price: {d.get('price')}</p>
+    <p>RSI: {d.get('rsi')}</p>
+    <p>Signal: {d.get('signal')}</p>
+
+    <h3>📊 Performance</h3>
+    <p>Accuracy: {acc}%</p>
+    <p>PnL: {pnl}</p>
+
+    <h3>📈 Chart</h3>
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol={chart_map.get(name)}&interval=5&theme=dark"
+    width="100%" height="300"></iframe>
+
+    <h3>📜 History</h3>
+    {history if history else "No trades"}
+
+    </body></html>
     """
