@@ -13,43 +13,38 @@ def style():
     body {background:black;color:white;text-align:center;}
     </style>
     """
-# 🔹 COIN PAGE
-@app.route("/coin/<name>")
-def coin(name):
-    d = latest_data.get(name, {})
-    total, wins, loss, pnl, acc = calculate_stats()
+@app.route("/")
+def home():
+    cards = ""
 
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
+    for coin, data in latest_data.items():
 
-    history = "".join([
-        f"<p>{t['time']} | {t['type']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
+        # 🔥 signal color
+        color = "white"
+        if data.get("signal") == "BUY":
+            color = "green"
+        elif data.get("signal") == "SELL":
+            color = "red"
+
+        cards += f"""
+        <div style="border:1px solid white; margin:10px; padding:10px;">
+            <h3>{coin}</h3>
+            <p>Price: {data.get('price')}</p>
+            <p style="color:{color}">Signal: {data.get('signal')}</p>
+            <p>{data.get('prediction')}</p>
+
+            <!-- 📈 LIVE CHART -->
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:{coin}USDT&interval=5&theme=dark"
+            width="100%" height="200"></iframe>
+        </div>
+        """
 
     return f"""
-    <html>{style()}
-    <body>{header()}
-    <h2>{name}</h2>
-    <p>Price: {d.get('price')}</p>
-    <p>RSI: {d.get('rsi')}</p>
-    <p>Signal: {d.get('signal')}</p>
-
-    <h3>📊 Performance</h3>
-    <p>Accuracy: {acc}%</p>
-    <p>PnL: {pnl}</p>
-
-    <h3>📈 Chart</h3>
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol={chart_map.get(name)}&interval=5&theme=dark"
-    width="100%" height="300"></iframe>
-
-    <h3>📜 History</h3>
-    {history if history else "No trades"}
-
-    </body></html>
+    <html>
+    {style()}
+    <body>
+    <h2>🚀 Trading Dashboard</h2>
+    {cards}
+    </body>
+    </html>
     """
