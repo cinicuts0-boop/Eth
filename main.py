@@ -42,16 +42,16 @@ def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
     loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
-    accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
+    pnl = (wins * 20) - (loss * 10)
+    acc = (wins / total * 100) if total > 0 else 0
+    return total, wins, loss, pnl, round(acc, 2)
 
-# 🔹 SIGNAL
+# 🔹 SIGNAL (PRO)
 def get_signal_for(symbol, name):
     global last_signal
 
     try:
-        df = yf.download(symbol, period="1d", interval="5m", progress=False)
+        df = yf.download(symbol, period="2d", interval="5m", progress=False)
 
         if df is None or df.empty:
             return
@@ -59,29 +59,61 @@ def get_signal_for(symbol, name):
         df = df.dropna()
 
         close = df['Close']
-        if len(close.shape) > 1:
-            close = close.squeeze()
+        high = df['High']
+        low = df['Low']
+        volume = df['Volume']
 
-        if len(close) < 30:
+        # FIX
+        close = close.squeeze()
+        high = high.squeeze()
+        low = low.squeeze()
+        volume = volume.squeeze()
+
+        if len(close) < 100:
             return
 
+        # INDICATORS
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
         macd = ta.trend.MACD(close)
         macd_val = macd.macd().iloc[-1]
         macd_sig = macd.macd_signal().iloc[-1]
 
+        ema50 = close.ewm(span=50).mean().iloc[-1]
+        ema200 = close.ewm(span=200).mean().iloc[-1]
+
+        vol_avg = volume.rolling(20).mean().iloc[-1]
+        volume_ok = volume.iloc[-1] > vol_avg
+
+        atr = ta.volatility.AverageTrueRange(
+            high=high, low=low, close=close
+        ).average_true_range().iloc[-1]
+
         price = float(close.iloc[-1])
 
         signal = "WAITING"
 
-        # 🔥 Improved logic
+        # 🔥 PRO LOGIC
         if 45 < rsi < 55:
             signal = "WAITING"
-        elif rsi < 35 and macd_val > macd_sig:
-            signal = "BUY"
-        elif rsi > 65 and macd_val < macd_sig:
-            signal = "SELL"
+
+        elif (
+            rsi < 35 and
+            macd_val > macd_sig and
+            price > ema50 and
+            ema50 > ema200 and
+            volume_ok
+        ):
+            signal = "BUY 🔥"
+
+        elif (
+            rsi > 65 and
+            macd_val < macd_sig and
+            price < ema50 and
+            ema50 < ema200 and
+            volume_ok
+        ):
+            signal = "SELL 🔥"
 
         latest_data[name] = {
             "price": round(price, 2),
@@ -95,25 +127,30 @@ def get_signal_for(symbol, name):
         if signal != "WAITING":
             last_signal[name] = signal
 
-            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
-            target = round(price + 20, 2) if signal == "BUY" else round(price - 20, 2)
+            # ATR SL/Target
+            if "BUY" in signal:
+                sl = price - atr
+                target = price + (atr * 2)
+            else:
+                sl = price + atr
+                target = price - (atr * 2)
 
             trade_history.append({
                 "coin": name,
                 "type": signal,
                 "price": round(price, 2),
-                "sl": sl,
-                "target": target,
+                "sl": round(sl, 2),
+                "target": round(target, 2),
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
 
             msg = f"""
-🚀 {name} SIGNAL
+🚀 {name} PRO SIGNAL
 Type: {signal}
 Entry: {price:.2f}
-Target: {target}
-SL: {sl}
+Target: {target:.2f}
+SL: {sl:.2f}
 RSI: {round(rsi,2)}
 """
             send_telegram(msg)
@@ -128,13 +165,13 @@ def update_results():
 
             price = latest_data.get(trade["coin"], {}).get("price", 0)
 
-            if trade["type"] == "BUY":
+            if "BUY" in trade["type"]:
                 if price >= trade["target"]:
                     trade["result"] = "WIN ✅"
                 elif price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
 
-            elif trade["type"] == "SELL":
+            elif "SELL" in trade["type"]:
                 if price <= trade["target"]:
                     trade["result"] = "WIN ✅"
                 elif price >= trade["sl"]:
@@ -151,113 +188,39 @@ def run_bot():
             get_signal_for("CL=F", "CRUDE")
 
             update_results()
-            print("Updated...")
+            print("Updated PRO...")
             time.sleep(300)
 
         except Exception as e:
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# 🔹 STYLE (MOBILE FIX)
+# 🔹 UI
 def style():
     return """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
     body {background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;margin:0;}
-    .nav a {margin:5px;color:#FFD700;text-decoration:none;font-size:14px;}
-    .grid {
-        display:grid;
-        grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-        gap:10px;
-        padding:10px;
-    }
-    .card {
-        background:#1e293b;
-        padding:15px;
-        border-radius:10px;
-    }
+    .grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:10px;}
+    .card {background:#1e293b;padding:15px;border-radius:12px;}
     </style>
     """
 
-# 🔹 HEADER
 def header():
-    return """
-    <h2>🚀 Mani Money Mindset 💸</h2>
-    <div class="nav">
-    <a href="/">Home</a>
-    <a href="/signals">Signals</a>
-    <a href="/rules">Rules</a>
-    <a href="/tricks">Tricks</a>
-    </div><hr>
-    """
+    return "<h2>🚀 PRO Trading Dashboard</h2><hr>"
 
-# 🔹 HOME
 @app.route("/")
 def home():
     cards = ""
     for coin, d in latest_data.items():
-
-        color = "#FFD700"
-        if d["signal"] == "BUY":
-            color = "#22c55e"
-        elif d["signal"] == "SELL":
-            color = "#ef4444"
-
         cards += f"""
-        <a href="/coin/{coin}">
         <div class="card">
         <h3>{coin}</h3>
         <p>{d['price']}</p>
-        <p style="color:{color}">{d['signal']}</p>
-        </div></a>
+        <p>{d['signal']}</p>
+        </div>
         """
-
     return f"<html>{style()}<body>{header()}<div class='grid'>{cards}</div></body></html>"
-
-# 🔹 SIGNALS
-@app.route("/signals")
-def signals():
-    msgs = "".join([f"<p>{m['time']} → {m['msg']}</p>" for m in telegram_messages[::-1][:50]])
-    return f"<html>{style()}<body>{header()}<h3>📩 Signals</h3>{msgs}</body></html>"
-
-# 🔹 RULES
-@app.route("/rules")
-def rules():
-    return f"<html>{style()}<body>{header()}<p>Trade at your own risk ⚠️</p></body></html>"
-
-# 🔹 TRICKS
-@app.route("/tricks")
-def tricks():
-    return f"<html>{style()}<body>{header()}<p>Protected content</p></body></html>"
-
-# 🔹 COIN PAGE
-@app.route("/coin/<name>")
-def coin(name):
-    d = latest_data.get(name, {})
-    total, wins, loss, pnl, acc = calculate_stats()
-
-    history = "".join([
-        f"<p>{t['time']} | {t['type']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
-
-    return f"""
-    <html>{style()}
-    <body>{header()}
-    <h2>{name}</h2>
-    <p>Price: {d.get('price')}</p>
-    <p>RSI: {d.get('rsi')}</p>
-    <p>Signal: {d.get('signal')}</p>
-
-    <h3>📊 Performance</h3>
-    <p>Accuracy: {acc}%</p>
-    <p>PnL: {pnl}</p>
-
-    <h3>📜 History</h3>
-    {history if history else "No trades"}
-
-    </body></html>
-    """
 
 # 🔹 MAIN
 if __name__ == "__main__":
