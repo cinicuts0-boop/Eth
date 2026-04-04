@@ -48,7 +48,7 @@ def calculate_stats():
 
 # 🔹 SIGNAL (IMPROVED)
 def get_signal_for(symbol, name):
-    global last_signal
+    global latest_data, trade_history, last_signal
 
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
@@ -62,6 +62,7 @@ def get_signal_for(symbol, name):
         if len(close.shape) > 1:
             close = close.squeeze()
 
+       
         if len(close) < 30:
             return
 
