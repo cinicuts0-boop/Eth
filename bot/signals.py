@@ -2,7 +2,6 @@ import yfinance as yf
 import ta
 import datetime
 
-from bot.strategy import get_ai_prediction
 from bot.telegram import send_telegram
 from bot.stats import trade_history
 
@@ -22,16 +21,11 @@ def get_signal_for(symbol, name):
         df = df.dropna()
         close = df['Close']
 
-        # ✅ FIX SHAPE ISSUE
         if hasattr(close, "shape") and len(close.shape) > 1:
             close = close.squeeze()
 
-        close = close.astype(float)
-
         if len(close) < 30:
             return
-
-        price = float(close.iloc[-1])
 
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
@@ -39,11 +33,13 @@ def get_signal_for(symbol, name):
         macd_val = macd.macd().iloc[-1]
         macd_sig = macd.macd_signal().iloc[-1]
 
-        prediction = get_ai_prediction(close)
+        price = float(close.iloc[-1].item())
 
         signal = "WAITING"
 
-        if rsi < 35 and macd_val > macd_sig:
+        if 45 < rsi < 55:
+            signal = "WAITING"
+        elif rsi < 35 and macd_val > macd_sig:
             signal = "BUY"
         elif rsi > 65 and macd_val < macd_sig:
             signal = "SELL"
@@ -51,8 +47,7 @@ def get_signal_for(symbol, name):
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi, 2),
-            "signal": signal,
-            "prediction": prediction
+            "signal": signal
         }
 
         if signal == last_signal.get(name):
