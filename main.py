@@ -29,7 +29,6 @@ def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-
         telegram_messages.append({
             "msg": msg,
             "time": datetime.datetime.now().strftime("%H:%M:%S")
@@ -42,11 +41,11 @@ def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
     loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 20) - (loss * 10)
-    acc = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(acc, 2)
+    pnl = (wins * 10) - (loss * 10)
+    accuracy = (wins / total * 100) if total > 0 else 0
+    return total, wins, loss, pnl, round(accuracy, 2)
 
-# 🔹 SIGNAL (ULTRA STRONG)
+# 🔹 SIGNAL (AI FILTER ADDED)
 def get_signal_for(symbol, name):
     global last_signal
 
@@ -57,52 +56,34 @@ def get_signal_for(symbol, name):
             return
 
         df = df.dropna()
-
         close = df['Close']
-        high = df['High']
-        low = df['Low']
-        volume = df['Volume']
 
         if len(close.shape) > 1:
             close = close.squeeze()
 
-        if len(close) < 100:
+        if len(close) < 30:
             return
 
-        # 🔹 INDICATORS
         rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
 
         macd = ta.trend.MACD(close)
         macd_val = macd.macd().iloc[-1]
         macd_sig = macd.macd_signal().iloc[-1]
 
-        ema50 = close.ewm(span=50).mean().iloc[-1]
-        ema200 = close.ewm(span=200).mean().iloc[-1]
-
-        atr = ta.volatility.AverageTrueRange(high, low, close).average_true_range().iloc[-1]
-
-        vol_avg = volume.rolling(20).mean().iloc[-1]
-        vol_now = volume.iloc[-1]
-
         price = float(close.iloc[-1])
-
         signal = "WAITING"
 
-        # 🔥 STRONG SIGNAL CONDITIONS
-        if (
-            rsi < 35 and
-            macd_val > macd_sig and
-            price > ema50 > ema200 and
-            vol_now > vol_avg
-        ):
+        # 🤖 AI FILTER (weak remove)
+        if abs(macd_val - macd_sig) < 0.05:
+            signal = "WAITING"
+
+        elif 45 < rsi < 55:
+            signal = "WAITING"
+
+        elif rsi < 35 and macd_val > macd_sig:
             signal = "BUY"
 
-        elif (
-            rsi > 65 and
-            macd_val < macd_sig and
-            price < ema50 < ema200 and
-            vol_now > vol_avg
-        ):
+        elif rsi > 65 and macd_val < macd_sig:
             signal = "SELL"
 
         latest_data[name] = {
@@ -117,30 +98,25 @@ def get_signal_for(symbol, name):
         if signal != "WAITING":
             last_signal[name] = signal
 
-            # 🔥 ATR BASED SL/TP
-            if signal == "BUY":
-                sl = price - atr
-                target = price + (atr * 2)
-            else:
-                sl = price + atr
-                target = price - (atr * 2)
+            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
+            target = round(price + 20, 2) if signal == "BUY" else round(price - 20, 2)
 
             trade_history.append({
                 "coin": name,
                 "type": signal,
                 "price": round(price, 2),
-                "sl": round(sl, 2),
-                "target": round(target, 2),
+                "sl": sl,
+                "target": target,
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
 
             msg = f"""
-🚀 {name} STRONG SIGNAL
+🚀 {name} SIGNAL
 Type: {signal}
 Entry: {price:.2f}
-Target: {target:.2f}
-SL: {sl:.2f}
+Target: {target}
+SL: {sl}
 RSI: {round(rsi,2)}
 """
             send_telegram(msg)
@@ -179,49 +155,67 @@ def run_bot():
         update_results()
         time.sleep(300)
 
-# 🔹 MOBILE STYLE
+# 🔹 STYLE (AUTO REFRESH + SOUND)
 def style():
     return """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script>
+    setInterval(() => { location.reload(); }, 10000);
+
+    function playSound(type){
+        let audio = new Audio(
+            type === 'BUY'
+            ? 'https://www.soundjay.com/buttons/sounds/button-09.mp3'
+            : 'https://www.soundjay.com/buttons/sounds/button-10.mp3'
+        );
+        audio.play();
+    }
+    </script>
+
     <style>
     body {background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}
-    .nav a {margin:5px;color:#FFD700;text-decoration:none;font-size:14px;}
-    .grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:10px;}
-    .card {background:#1e293b;padding:15px;border-radius:12px;}
-    .green {color:#22c55e;}
-    .red {color:#ef4444;}
+    .nav a {margin:5px;color:#FFD700;text-decoration:none;}
+    .grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:10px;}
+    .card {background:#1e293b;padding:15px;border-radius:10px;}
     </style>
     """
 
 # 🔹 HEADER
 def header():
     return """
-    <h2>🚀 Mani Money Mindset</h2>
+    <h1>🚀 Mani Money Mindset 💸</h1>
     <div class="nav">
     <a href="/">Home</a>
     <a href="/signals">Signals</a>
     <a href="/rules">Rules</a>
+    <a href="/tricks">Tricks</a>
     </div><hr>
     """
 
-# 🔹 HOME
+# 🔹 HOME (SOUND ADDED)
 @app.route("/")
 def home():
     cards = ""
     for coin, d in latest_data.items():
 
-        color = ""
+        color = "#FFD700"
+        sound = ""
+
         if d["signal"] == "BUY":
             color = "green"
+            sound = "<script>playSound('BUY')</script>"
         elif d["signal"] == "SELL":
             color = "red"
+            sound = "<script>playSound('SELL')</script>"
 
         cards += f"""
         <a href="/coin/{coin}">
         <div class="card">
         <h3>{coin}</h3>
         <p>{d['price']}</p>
-        <p class="{color}">{d['signal']}</p>
+        <p style="color:{color}">{d['signal']}</p>
+        {sound}
         </div></a>
         """
 
@@ -236,7 +230,12 @@ def signals():
 # 🔹 RULES
 @app.route("/rules")
 def rules():
-    return f"<html>{style()}<body>{header()}<p>Trade at your own risk ⚠️</p></body></html>"
+    return f"<html>{style()}<body>{header()}<p>Trade at your own risk</p></body></html>"
+
+# 🔹 TRICKS
+@app.route("/tricks")
+def tricks():
+    return f"<html>{style()}<body>{header()}<p>Protected content</p></body></html>"
 
 # 🔹 COIN PAGE
 @app.route("/coin/<name>")
@@ -270,3 +269,4 @@ def coin(name):
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     app.run(host="0.0.0.0", port=8080)
+    
