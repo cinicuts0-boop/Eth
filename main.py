@@ -217,36 +217,21 @@ def dashboard():
     <html>
     <head>
     <script>
-        let lastSignals = {latest_data};
+let lastAlert = "{last_alert_time}";
+let prevAlert = localStorage.getItem("lastAlert");
 
-        function checkSignalChange() {{
-            fetch("/")
-            .then(res => res.text())
-            .then(html => {{
-                // simple refresh detect
-                location.reload();
-            }});
-        }}
+// 🔊 புதிய signal வந்தா மட்டும் sound
+if (lastAlert !== prevAlert && lastAlert !== "") {
+    let audio = new Audio('/static/alert.mp3');
+    audio.play();
+    localStorage.setItem("lastAlert", lastAlert);
+}
 
-        // 🔊 play sound on load
-        window.onload = function() {{
-            let signals = {latest_data};
-
-            for (let key in signals) {{
-                if (signals[key].signal === "BUY" || signals[key].signal === "SELL") {{
-                    let audio = new Audio('/static/alert.mp3');
-                    audio.play();
-                    break;
-                }}
-            }}
-        }}
-
-        // auto refresh every 60 sec
-        setInterval(() => {{
-            location.reload();
-        }}, 60000);
-    </script>
-
+// auto refresh 60 sec
+setInterval(() => {
+    location.reload();
+}, 60000);
+</script>
     <style>
     body {{
         background:#0f172a;
