@@ -19,12 +19,24 @@ def home():
     cards = ""
 
     for coin, data in latest_data.items():
+
+        # 🔥 signal color
+        color = "white"
+        if data.get("signal") == "BUY":
+            color = "green"
+        elif data.get("signal") == "SELL":
+            color = "red"
+
         cards += f"""
         <div style="border:1px solid white; margin:10px; padding:10px;">
             <h3>{coin}</h3>
             <p>Price: {data.get('price')}</p>
-            <p>Signal: {data.get('signal')}</p>
+            <p style="color:{color}">Signal: {data.get('signal')}</p>
             <p>{data.get('prediction')}</p>
+
+            <!-- 📈 LIVE CHART -->
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:{coin}USDT&interval=5&theme=dark"
+            width="100%" height="200"></iframe>
         </div>
         """
 
