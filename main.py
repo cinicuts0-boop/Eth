@@ -366,6 +366,7 @@ def coin_detail(name):
     </body>
     </html>
     """
+    
 
 # 🔹 MAIN
 if __name__ == "__main__":
