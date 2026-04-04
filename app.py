@@ -11,7 +11,8 @@ def run_bot():
         get_signal_for("^NSEI", "NIFTY")
         get_signal_for("^NSEBANK", "BANKNIFTY")
         get_signal_for("CL=F", "CRUDE")
+
         time.sleep(300)
 
-if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
+# 🔥 Railway important
+threading.Thread(target=run_bot, daemon=True).start()
