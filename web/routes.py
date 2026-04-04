@@ -16,9 +16,24 @@ def style():
 
 @app.route("/")
 def home():
-    return f"<html>{style()}<body><h2>Dashboard</h2>{latest_data}</body></html>"
+    cards = ""
 
-@app.route("/signals")
-def signals():
-    msgs = "".join([f"<p>{m['time']} → {m['msg']}</p>" for m in telegram_messages[::-1]])
-    return f"<html>{style()}<body>{msgs}</body></html>"
+    for coin, data in latest_data.items():
+        cards += f"""
+        <div style="border:1px solid white; margin:10px; padding:10px;">
+            <h3>{coin}</h3>
+            <p>Price: {data.get('price')}</p>
+            <p>Signal: {data.get('signal')}</p>
+            <p>{data.get('prediction')}</p>
+        </div>
+        """
+
+    return f"""
+    <html>
+    {style()}
+    <body>
+    <h2>🚀 Trading Dashboard</h2>
+    {cards}
+    </body>
+    </html>
+    """
