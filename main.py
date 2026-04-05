@@ -27,13 +27,13 @@ trade_history = []
 telegram_messages = []
 last_signal = {}
 
-# 💰 ACCOUNT SETTINGS
-account_balance = 10000   # starting balance
-risk_per_trade = 0.02     # 2% risk
-
 # 🔊 NEW
 last_alert_time = ""
 last_alert_type = ""
+
+# 💰 ACCOUNT SETTINGS
+account_balance = 10000   # starting balance
+risk_per_trade = 0.02     # 2% risk
 
 @app.route("/data")
 def live_data():
