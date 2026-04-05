@@ -48,9 +48,12 @@ def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
     loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
+
+    total_pnl = sum(t.get("pnl", 0) for t in trade_history)
+
     accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
+
+    return total, wins, loss, round(total_pnl, 2), round(accuracy, 2)
 
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
@@ -138,17 +141,29 @@ def update_results():
             if current_price == 0:
                 continue
 
+            entry = trade["price"]
+
             if trade["type"] == "BUY":
                 if current_price >= trade["target"]:
                     trade["result"] = "WIN ✅"
+                    trade["exit"] = current_price
+                    trade["pnl"] = round(current_price - entry, 2)
+
                 elif current_price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
+                    trade["exit"] = current_price
+                    trade["pnl"] = round(current_price - entry, 2)
 
             elif trade["type"] == "SELL":
                 if current_price <= trade["target"]:
                     trade["result"] = "WIN ✅"
+                    trade["exit"] = current_price
+                    trade["pnl"] = round(entry - current_price, 2)
+
                 elif current_price >= trade["sl"]:
                     trade["result"] = "LOSS ❌"
+                    trade["exit"] = current_price
+                    trade["pnl"] = round(entry - current_price, 2)
 
 # 🔹 BOT LOOP
 def run_bot():
@@ -415,9 +430,9 @@ def coin_detail(name):
     total, wins, loss, pnl, accuracy = calculate_stats()
 
     history = "".join([
-        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
+    f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | PnL: {t.get('pnl',0)}</p>"
+    for t in trade_history if t["coin"] == name
+][-10:])
 
     chart_map = {
         "ETH": "BINANCE:ETHUSDT",
