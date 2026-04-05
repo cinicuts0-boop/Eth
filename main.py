@@ -645,24 +645,28 @@ def coin_detail(name):
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<canvas id="chart" width="300" height="150"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-function drawChart(data){
+function drawChart(data){{
     const ctx = document.getElementById('chart');
-    new Chart(ctx, {
+    new Chart(ctx, {{
         type: 'line',
-        data: {
+        data: {{
             labels: data.map((_,i)=>i+1),
-            datasets: [{
+            datasets: [{{
                 label: 'Balance',
                 data: data
-            }]
-        }
-    });
-}
+            }}]
+        }}
+    }});
+}}
 
-fetch('/equity').then(r=>r.json()).then(d=>{
+fetch('/equity').then(r=>r.json()).then(d=>{{
     drawChart(d.data);
-});
+}});
 </script>
 
     </body>
