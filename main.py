@@ -12,6 +12,10 @@ app = Flask(__name__)
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
+# 💰 ACCOUNT SETTINGS
+account_balance = 10000
+risk_per_trade = 0.02
+
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
@@ -33,7 +37,8 @@ def send_telegram(msg):
 
 # SIGNAL
 def get_signal(symbol, name):
-    global last_signal
+
+    global account_balance
 
     try:
         df = yf.download(
@@ -77,8 +82,15 @@ def get_signal(symbol, name):
 
             last_signal[name] = signal
 
+            # 💰 Risk Calculation
+            risk_amount = account_balance * risk_per_trade
+
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
+
+            sl_distance = abs(price - sl)
+
+            lot_size = risk_amount / sl_distance if sl_distance != 0 else 0
 
             trade_history.append({
                 "coin": name,
@@ -86,6 +98,7 @@ def get_signal(symbol, name):
                 "price": round(price,2),
                 "sl": sl,
                 "target": target,
+                "lot": round(lot_size,2),
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
@@ -97,7 +110,9 @@ Type: {signal}
 Entry: {price:.2f}
 Target: {target}
 SL: {sl}
+Lot: {round(lot_size,2)}
 """
+
             send_telegram(msg)
 
     except Exception as e:
@@ -106,6 +121,8 @@ SL: {sl}
 # RESULT UPDATE
 def update_results():
 
+    global account_balance
+
     for trade in trade_history:
 
         if trade["result"] != "OPEN":
@@ -113,21 +130,36 @@ def update_results():
 
         price = latest_data[trade["coin"]]["price"]
 
+        entry = trade["price"]
+        lot = trade["lot"]
+
+        # 💰 PnL Calculation
+        if trade["type"] == "BUY":
+            pnl = (price - entry) * lot
+        else:
+            pnl = (entry - price) * lot
+
+        trade["pnl"] = round(pnl,2)
+
         if trade["type"] == "BUY":
 
             if price >= trade["target"]:
                 trade["result"] = "WIN ✅"
+                account_balance += pnl
 
             elif price <= trade["sl"]:
                 trade["result"] = "LOSS ❌"
+                account_balance += pnl
 
         if trade["type"] == "SELL":
 
             if price <= trade["target"]:
                 trade["result"] = "WIN ✅"
+                account_balance += pnl
 
             elif price >= trade["sl"]:
                 trade["result"] = "LOSS ❌"
+                account_balance += pnl
 
 # BOT LOOP
 def run_bot():
@@ -145,7 +177,7 @@ def run_bot():
 @app.route("/")
 def home():
 
-    cards = ""
+    cards=""
 
     for coin,data in latest_data.items():
 
@@ -200,6 +232,8 @@ def home():
 
     <h1>🚀 Mani Money Mindset 💸</h1>
 
+    <h3>Balance: ₹{round(account_balance,2)}</h3>
+
     {cards}
 
     </body>
@@ -222,6 +256,8 @@ def coin_page(name):
             {t['time']} |
             {t['type']} @ {t['price']}
             → {t['result']}
+            | Lot: {t['lot']}
+            | PnL: {t.get('pnl',0)}
             </p>
             """
 
