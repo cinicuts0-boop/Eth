@@ -150,36 +150,31 @@ def update_results():
                 continue
 
             entry = trade["price"]
-            lot = trade.get("lot", 0)
+            lot = trade.get("lot", 1)
 
+            # 💰 LIVE PnL
             if trade["type"] == "BUY":
                 pnl = (current_price - entry) * lot
+            else:
+                pnl = (entry - current_price) * lot
 
+            trade["live_pnl"] = round(pnl, 2)
+
+            # 🎯 CLOSE TRADE
+            if trade["type"] == "BUY":
                 if current_price >= trade["target"]:
                     trade["result"] = "WIN ✅"
-                    trade["exit"] = current_price
-                    trade["pnl"] = round(pnl, 2)
                     account_balance += pnl
-
                 elif current_price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
-                    trade["exit"] = current_price
-                    trade["pnl"] = round(pnl, 2)
                     account_balance += pnl
 
             elif trade["type"] == "SELL":
-                pnl = (entry - current_price) * lot
-
                 if current_price <= trade["target"]:
                     trade["result"] = "WIN ✅"
-                    trade["exit"] = current_price
-                    trade["pnl"] = round(pnl, 2)
                     account_balance += pnl
-
                 elif current_price >= trade["sl"]:
                     trade["result"] = "LOSS ❌"
-                    trade["exit"] = current_price
-                    trade["pnl"] = round(pnl, 2)
                     account_balance += pnl
 
 # 🔹 BOT LOOP
