@@ -296,25 +296,26 @@ for coin, data in latest_data.items():
         border:1px solid #FFD700;
     }}
     a {{text-decoration:none;color:#FFD700;}}
-@keyframes blinkGreen {
-    0% { background-color: #1e293b; }
-    50% { background-color: #22c55e; }
-    100% { background-color: #1e293b; }
-}
 
-@keyframes blinkRed {
-    0% { background-color: #1e293b; }
-    50% { background-color: #ef4444; }
-    100% { background-color: #1e293b; }
-}
+@keyframes blinkGreen {{
+    0% {{ background-color: #1e293b; }}
+    50% {{ background-color: #22c55e; }}
+    100% {{ background-color: #1e293b; }}
+}}
 
-.blink-buy {
+@keyframes blinkRed {{
+    0% {{ background-color: #1e293b; }}
+    50% {{ background-color: #ef4444; }}
+    100% {{ background-color: #1e293b; }}
+}}
+
+.blink-buy {{
     animation: blinkGreen 1s infinite;
-}
+}}
 
-.blink-sell {
+.blink-sell {{
     animation: blinkRed 1s infinite;
-}
+}}
     </style>
     </head>
     <body>
