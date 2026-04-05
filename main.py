@@ -10,24 +10,14 @@ import pytz
 
 app = Flask(__name__)
 
-# 🔐 பாதுகாப்புக்கு ENV use பண்ணலாம் (recommended)
-TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
-CHAT_ID = os.getenv("CHAT_ID", "8007854479")
-
+# 🔐 ENV
+TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID")
 
 # ⏱ TIME
 def get_ist_time():
     ist = pytz.timezone('Asia/Kolkata')
     return datetime.now(ist).strftime("%H:%M:%S")
-
-def get_trade_duration(start_time):
-    try:
-        fmt = "%H:%M:%S"
-        now = datetime.strptime(get_ist_time(), fmt)
-        start = datetime.strptime(start_time, fmt)
-        return str(now - start)
-    except:
-        return "0:00:00"
 
 # 📊 DATA
 latest_data = {
@@ -38,13 +28,11 @@ latest_data = {
 }
 
 trade_history = []
-telegram_messages = []
 last_signal = {}
 
 # 🔊 ALERT
 last_alert_time = ""
 last_alert_type = ""
-last_report_date = ""
 
 # 💰 ACCOUNT
 account_balance = 10000
@@ -53,40 +41,15 @@ risk_per_trade = 0.02
 # 🔹 API
 @app.route("/data")
 def live_data():
-    return {
-        "data": latest_data,
-        "last_alert_time": last_alert_time,
-        "last_alert_type": last_alert_type
-    }
+    return {"data": latest_data}
 
 # 🔹 TELEGRAM
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-        telegram_messages.append({"msg": msg, "time": get_ist_time()})
     except:
-        print("Telegram Error")
-
-# 🔹 STATS
-def calculate_stats():
-    total = len(trade_history)
-    wins = sum(1 for t in trade_history if "WIN" in t["result"])
-    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-
-    total_pnl = sum(t.get("live_pnl", 0) for t in trade_history)
-
-    accuracy = (wins / total * 100) if total > 0 else 0
-    percent = ((account_balance - 10000) / 10000) * 100
-
-    return total, wins, loss, round(total_pnl,2), round(accuracy,2), round(percent,2)
-
-def today_pnl():
-    pnl = 0
-    for t in trade_history:
-        if t["result"] != "OPEN":
-            pnl += t.get("live_pnl", 0)
-    return round(pnl, 2)
+        print("Telegram error")
 
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
@@ -99,7 +62,7 @@ def get_signal_for(symbol, name):
             return
 
         close = df['Close']
-        if hasattr(close, "values") and len(close.shape) > 1:
+        if len(close.shape) > 1:
             close = close.squeeze()
 
         close = close.dropna()
@@ -135,21 +98,11 @@ def get_signal_for(symbol, name):
             last_alert_time = get_ist_time()
             last_alert_type = signal
 
-            risk_amount = account_balance * risk_per_trade
-            sl = price - 10 if signal == "BUY" else price + 10
-            target = price + 10 if signal == "BUY" else price - 10
-
-            lot = risk_amount / abs(price - sl)
-
             trade_history.append({
                 "coin": name,
                 "type": signal,
                 "price": price,
-                "sl": sl,
-                "target": target,
-                "lot": round(lot,2),
-                "time": get_ist_time(),
-                "result": "OPEN"
+                "time": get_ist_time()
             })
 
             send_telegram(f"{name} {signal} @ {price}")
@@ -157,60 +110,7 @@ def get_signal_for(symbol, name):
     except Exception as e:
         print(name, "ERROR:", e)
 
-# 🔹 UPDATE
-def update_results():
-    global account_balance
-
-    for t in trade_history:
-        if t["result"] == "OPEN":
-
-            current = latest_data.get(t["coin"], {}).get("price",0)
-            if current == 0:
-                continue
-
-            entry = t["price"]
-            lot = t["lot"]
-
-            pnl = (current - entry)*lot if t["type"]=="BUY" else (entry-current)*lot
-            t["live_pnl"] = round(pnl,2)
-
-            if t["type"]=="BUY":
-                if current >= t["target"] or current <= t["sl"]:
-                    t["result"] = "WIN ✅" if current>=t["target"] else "LOSS ❌"
-                    account_balance += pnl
-
-            if t["type"]=="SELL":
-                if current <= t["target"] or current >= t["sl"]:
-                    t["result"] = "WIN ✅" if current<=t["target"] else "LOSS ❌"
-                    account_balance += pnl
-
-# 🔹 DAILY REPORT
-def send_daily_report():
-    global last_report_date
-
-    now = datetime.now(pytz.timezone('Asia/Kolkata'))
-    today = now.strftime("%Y-%m-%d")
-
-    if last_report_date == today:
-        return
-
-    if now.hour == 23 and now.minute >= 59:
-        total, wins, loss, pnl, acc, percent = calculate_stats()
-
-        msg = f"""
-📅 DAILY REPORT
-💰 Balance: ₹{account_balance}
-📊 Trades: {total}
-✅ Wins: {wins}
-❌ Loss: {loss}
-📈 Accuracy: {acc}%
-💸 PnL: {pnl}
-📊 Return: {percent}%
-"""
-        send_telegram(msg)
-        last_report_date = today
-
-# 🔹 LOOP
+# 🔹 BOT LOOP
 def run_bot():
     while True:
         try:
@@ -219,48 +119,90 @@ def run_bot():
             get_signal_for("^NSEI","NIFTY")
             get_signal_for("^NSEBANK","BANKNIFTY")
 
-            update_results()
-            send_daily_report()
-
             time.sleep(300)
 
         except Exception as e:
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# 🔹 UI
+# 🔹 DASHBOARD (OLD STYLE GOLD)
 @app.route("/")
-def home():
+def dashboard():
     cards = ""
-    for c,d in latest_data.items():
-        cards += f"<p>{c} | {d['price']} | {d['signal']}</p>"
+
+    for coin, data in latest_data.items():
+        color = "#FFD700"
+
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
+
+        cards += f"""
+        <div class="box">
+        <h3>{coin}</h3>
+        <p id="{coin}_price">{data['price']}</p>
+        <p id="{coin}_signal" style="color:{color}">{data['signal']}</p>
+        </div>
+        """
 
     return f"""
-    <h2>🚀 Dashboard</h2>
+    <html>
+    <head>
+
+    <script>
+    function updateData() {{
+        fetch('/data')
+        .then(res => res.json())
+        .then(data => {{
+
+            for (let coin in data.data) {{
+
+                let price = data.data[coin].price;
+                let signal = data.data[coin].signal;
+
+                document.getElementById(coin + "_price").innerText = price;
+                document.getElementById(coin + "_signal").innerText = signal;
+
+                let color = "#FFD700";
+                if (signal === "BUY") color = "#22c55e";
+                if (signal === "SELL") color = "#ef4444";
+
+                document.getElementById(coin + "_signal").style.color = color;
+            }}
+        }});
+    }}
+
+    setInterval(updateData, 5000);
+    </script>
+
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        text-align:center;
+        font-family:Arial;
+    }}
+
+    .box {{
+        background:#1e293b;
+        padding:20px;
+        margin:10px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+    </style>
+
+    </head>
+    <body>
+
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
+
     {cards}
-    """
 
-@app.route("/coin/<name>")
-def coin(name):
-    data = latest_data.get(name, {})
-    total, wins, loss, pnl, acc, percent = calculate_stats()
-
-    history = "".join([
-        f"<p>{t['time']} | {t['type']} | {t.get('live_pnl',0)}</p>"
-        for t in trade_history if t["coin"]==name
-    ])
-
-    return f"""
-    <h2>{name}</h2>
-    <p>Price: {data.get('price')}</p>
-    <p>Signal: {data.get('signal')}</p>
-
-    <h3>Performance</h3>
-    <p>Balance: {account_balance}</p>
-    <p>Today PnL: {today_pnl()}</p>
-
-    <h3>History</h3>
-    {history}
+    </body>
+    </html>
     """
 
 # 🔹 MAIN
