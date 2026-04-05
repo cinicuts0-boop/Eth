@@ -109,7 +109,27 @@ def get_signal_for(symbol, name):
             return
 
         if signal != "WAITING":
-            last_signal[name] = signal
+    last_signal[name] = signal
+
+    # 💼 LOT SIZE CALCULATION (INSIDE TRY)
+    risk_amount = account_balance * risk_per_trade
+    sl_distance = abs(price - sl)
+
+    lot_size = risk_amount / sl_distance if sl_distance != 0 else 0
+
+    sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
+    target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
+
+    trade_history.append({
+        "coin": name,
+        "type": signal,
+        "price": round(price, 2),
+        "sl": sl,
+        "target": target,
+        "lot": round(lot_size,2),
+        "time": datetime.datetime.now().strftime("%H:%M:%S"),
+        "result": "OPEN"
+    })
 
             # 🔊 ALERT UPDATE
             last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
@@ -118,22 +138,7 @@ def get_signal_for(symbol, name):
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
-            # 💼 LOT SIZE CALCULATION
-risk_amount = account_balance * risk_per_trade
-sl_distance = abs(price - sl)
-
-lot_size = round(risk_amount / sl_distance, 2) if sl_distance != 0 else 0
-
-trade_history.append({
-    "coin": name,
-    "type": signal,
-    "price": round(price, 2),
-    "sl": sl,
-    "target": target,
-    "lot": lot_size,
-    "time": datetime.datetime.now().strftime("%H:%M:%S"),
-    "result": "OPEN"
-})
+            
 
             msg = f"""
 🚀 {name} SIGNAL
