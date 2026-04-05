@@ -26,6 +26,10 @@ trade_history = []
 telegram_messages = []
 last_signal = {}
 
+# 💰 ACCOUNT SETTINGS
+account_balance = 2000   # starting balance
+risk_per_trade = 0.02     # 2% risk
+
 # 🔊 NEW
 last_alert_time = ""
 last_alert_type = ""
@@ -53,7 +57,11 @@ def calculate_stats():
 
     accuracy = (wins / total * 100) if total > 0 else 0
 
-    return total, wins, loss, round(total_pnl, 2), round(accuracy, 2)
+    # 📊 % RETURN
+    initial_balance = 10000
+    percent_return = ((account_balance - initial_balance) / initial_balance) * 100
+
+    return total, wins, loss, round(total_pnl, 2), round(accuracy, 2), round(percent_return, 2)
 
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
@@ -110,15 +118,22 @@ def get_signal_for(symbol, name):
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
-            trade_history.append({
-                "coin": name,
-                "type": signal,
-                "price": round(price, 2),
-                "sl": sl,
-                "target": target,
-                "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "result": "OPEN"
-            })
+            # 💼 LOT SIZE CALCULATION
+risk_amount = account_balance * risk_per_trade
+sl_distance = abs(price - sl)
+
+lot_size = round(risk_amount / sl_distance, 2) if sl_distance != 0 else 0
+
+trade_history.append({
+    "coin": name,
+    "type": signal,
+    "price": round(price, 2),
+    "sl": sl,
+    "target": target,
+    "lot": lot_size,
+    "time": datetime.datetime.now().strftime("%H:%M:%S"),
+    "result": "OPEN"
+})
 
             msg = f"""
 🚀 {name} SIGNAL
@@ -134,6 +149,8 @@ SL: {sl}
 
 # 🔹 RESULT UPDATE
 def update_results():
+    global account_balance
+
     for trade in trade_history:
         if trade["result"] == "OPEN":
 
@@ -142,28 +159,37 @@ def update_results():
                 continue
 
             entry = trade["price"]
+            lot = trade.get("lot", 0)
 
             if trade["type"] == "BUY":
+                pnl = (current_price - entry) * lot
+
                 if current_price >= trade["target"]:
                     trade["result"] = "WIN ✅"
                     trade["exit"] = current_price
-                    trade["pnl"] = round(current_price - entry, 2)
+                    trade["pnl"] = round(pnl, 2)
+                    account_balance += pnl
 
                 elif current_price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
                     trade["exit"] = current_price
-                    trade["pnl"] = round(current_price - entry, 2)
+                    trade["pnl"] = round(pnl, 2)
+                    account_balance += pnl
 
             elif trade["type"] == "SELL":
+                pnl = (entry - current_price) * lot
+
                 if current_price <= trade["target"]:
                     trade["result"] = "WIN ✅"
                     trade["exit"] = current_price
-                    trade["pnl"] = round(entry - current_price, 2)
+                    trade["pnl"] = round(pnl, 2)
+                    account_balance += pnl
 
                 elif current_price >= trade["sl"]:
                     trade["result"] = "LOSS ❌"
                     trade["exit"] = current_price
-                    trade["pnl"] = round(entry - current_price, 2)
+                    trade["pnl"] = round(pnl, 2)
+                    account_balance += pnl
 
 # 🔹 BOT LOOP
 def run_bot():
@@ -427,7 +453,7 @@ def tricks_page():
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
-    total, wins, loss, pnl, accuracy = calculate_stats()
+    total, wins, loss, pnl, accuracy, percent = calculate_stats()
 
     history = "".join([
     f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | PnL: {t.get('pnl',0)}</p>"
@@ -523,10 +549,12 @@ def coin_detail(name):
     </div>
 
     <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
-    </div>
+    <h3>📊 Performance</h3>
+    <p>Balance: ₹{round(account_balance,2)}</p>
+    <p>Accuracy: {accuracy}%</p>
+    <p>Total PnL: {pnl}</p>
+    <p>Return: {percent}%</p>
+</div>
 
     <div class="box">
         <h3>📈 Chart</h3>
