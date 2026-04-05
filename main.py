@@ -197,7 +197,7 @@ def run_bot():
             get_signal_for("BTC-USD", "BTC")
             get_signal_for("^NSEI", "NIFTY")
             get_signal_for("^NSEBANK", "BANKNIFTY")
-            # get_signal_for("CL=F", "CRUDE")
+            get_signal_for("CL=F", "CRUDE")
 
             update_results()   # ✅ same level
 
