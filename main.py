@@ -214,7 +214,7 @@ def dashboard():
 
         cards += f"""
         <a href="/coin/{coin}">
-        <div class="box">
+        <div class="box {'blink-buy' if data['signal']=='BUY' else 'blink-sell' if data['signal']=='SELL' else ''}">
         <h3>{coin}</h3>
         <p id="{coin}_price">{data['price']}</p>
         <p id="{coin}_signal" style="color:{color}">{data['signal']}</p>
@@ -291,6 +291,25 @@ def dashboard():
         border:1px solid #FFD700;
     }}
     a {{text-decoration:none;color:#FFD700;}}
+@keyframes blinkGreen {
+    0% { background-color: #1e293b; }
+    50% { background-color: #22c55e; }
+    100% { background-color: #1e293b; }
+}
+
+@keyframes blinkRed {
+    0% { background-color: #1e293b; }
+    50% { background-color: #ef4444; }
+    100% { background-color: #1e293b; }
+}
+
+.blink-buy {
+    animation: blinkGreen 1s infinite;
+}
+
+.blink-sell {
+    animation: blinkRed 1s infinite;
+}
     </style>
     </head>
     <body>
