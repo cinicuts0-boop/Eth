@@ -8,7 +8,7 @@ import threading
 from datetime import datetime
 import pytz
 
-# 🕒 IST TIME
+# 🕒 TIME
 def get_ist_time():
     ist = pytz.timezone('Asia/Kolkata')
     return datetime.now(ist).strftime("%H:%M:%S")
@@ -18,8 +18,7 @@ def get_trade_duration(start_time):
         fmt = "%H:%M:%S"
         now = datetime.strptime(get_ist_time(), fmt)
         start = datetime.strptime(start_time, fmt)
-        diff = now - start
-        return str(diff)
+        return str(now - start)
     except:
         return "0:00:00"
 
@@ -42,11 +41,11 @@ equity_curve = []
 
 last_alert_time = ""
 last_alert_type = ""
-last_report_date = ""
 
 account_balance = 10000
 risk_per_trade = 0.02
 
+# 📡 API
 @app.route("/data")
 def live_data():
     return {
@@ -80,16 +79,16 @@ def calculate_stats():
     total_pnl = sum(t.get("live_pnl", 0) for t in trade_history)
 
     accuracy = (wins / total * 100) if total > 0 else 0
-    percent_return = ((account_balance - 10000) / 10000) * 100
+    percent = ((account_balance - 10000) / 10000) * 100
 
-    return total, wins, loss, round(total_pnl, 2), round(accuracy, 2), round(percent_return, 2)
+    return total, wins, loss, round(total_pnl,2), round(accuracy,2), round(percent,2)
 
 def get_today_pnl():
     pnl = 0
     for t in trade_history:
         if t["result"] != "OPEN":
             pnl += t.get("live_pnl", 0)
-    return round(pnl, 2)
+    return round(pnl,2)
 
 # 📈 SIGNAL
 def get_signal_for(symbol, name):
@@ -101,7 +100,14 @@ def get_signal_for(symbol, name):
         if df is None or df.empty:
             return
 
-        close = df['Close'].dropna()
+        close = df['Close']
+
+        # 🔥 FIX
+        if len(close.shape) > 1:
+            close = close.squeeze()
+
+        close = close.dropna()
+
         if len(close) < 30:
             return
 
@@ -121,8 +127,8 @@ def get_signal_for(symbol, name):
             signal = "SELL"
 
         latest_data[name] = {
-            "price": round(price, 2),
-            "rsi": round(rsi_val, 2),
+            "price": round(price,2),
+            "rsi": round(rsi_val,2),
             "signal": signal
         }
 
@@ -135,61 +141,64 @@ def get_signal_for(symbol, name):
             last_alert_type = signal
 
             risk_amount = account_balance * risk_per_trade
-            sl = price - 10 if signal == "BUY" else price + 10
-            target = price + 10 if signal == "BUY" else price - 10
+
+            sl = price - 10 if signal=="BUY" else price + 10
+            target = price + 10 if signal=="BUY" else price - 10
 
             lot = risk_amount / abs(price - sl) if price != sl else 0
 
             trade_history.append({
                 "coin": name,
                 "type": signal,
-                "price": round(price, 2),
-                "sl": round(sl, 2),
-                "target": round(target, 2),
-                "lot": round(lot, 2),
+                "price": round(price,2),
+                "sl": round(sl,2),
+                "target": round(target,2),
+                "lot": round(lot,2),
                 "time": get_ist_time(),
                 "result": "OPEN"
             })
 
+            send_telegram(f"{name} {signal} @ {round(price,2)}")
+
     except Exception as e:
         print(name, "ERROR:", e)
 
-# 💰 RESULT UPDATE
+# 💰 RESULT
 def update_results():
     global account_balance
 
     for trade in trade_history:
         if trade["result"] == "OPEN":
 
-            price = latest_data.get(trade["coin"], {}).get("price", 0)
+            price = latest_data.get(trade["coin"],{}).get("price",0)
             if price == 0:
                 continue
 
             entry = trade["price"]
             lot = trade["lot"]
 
-            pnl = (price - entry) * lot if trade["type"] == "BUY" else (entry - price) * lot
+            pnl = (price-entry)*lot if trade["type"]=="BUY" else (entry-price)*lot
+            trade["live_pnl"] = round(pnl,2)
 
-            trade["live_pnl"] = round(pnl, 2)
-            equity_curve.append(round(account_balance, 2))
+            equity_curve.append(round(account_balance,2))
 
-            if trade["type"] == "BUY":
-                if price >= trade["target"] or price <= trade["sl"]:
-                    trade["result"] = "WIN ✅" if price >= trade["target"] else "LOSS ❌"
+            if trade["type"]=="BUY":
+                if price>=trade["target"] or price<=trade["sl"]:
+                    trade["result"] = "WIN ✅" if price>=trade["target"] else "LOSS ❌"
                     account_balance += pnl
             else:
-                if price <= trade["target"] or price >= trade["sl"]:
-                    trade["result"] = "WIN ✅" if price <= trade["target"] else "LOSS ❌"
+                if price<=trade["target"] or price>=trade["sl"]:
+                    trade["result"] = "WIN ✅" if price<=trade["target"] else "LOSS ❌"
                     account_balance += pnl
 
-# 🔁 BOT LOOP
+# 🔁 LOOP
 def run_bot():
     while True:
         try:
-            get_signal_for("ETH-USD", "ETH")
-            get_signal_for("BTC-USD", "BTC")
-            get_signal_for("^NSEI", "NIFTY")
-            get_signal_for("^NSEBANK", "BANKNIFTY")
+            get_signal_for("ETH-USD","ETH")
+            get_signal_for("BTC-USD","BTC")
+            get_signal_for("^NSEI","NIFTY")
+            get_signal_for("^NSEBANK","BANKNIFTY")
 
             update_results()
             time.sleep(300)
@@ -201,7 +210,7 @@ def run_bot():
 # 🌐 UI
 @app.route("/")
 def home():
-    return "✅ Bot Running"
+    return "✅ BOT RUNNING SUCCESSFULLY 🚀"
 
 # 🚀 START
 if __name__ == "__main__":
