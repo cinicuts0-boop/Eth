@@ -7,6 +7,11 @@ import os
 from flask import Flask
 import threading
 import datetime
+from datetime import datetime
+import pytz
+def get_ist_time():
+    ist = pytz.timezone('Asia/Kolkata')
+    return datetime.now(ist).strftime("%H:%M:%S")
 
 app = Flask(__name__)
 
@@ -51,7 +56,7 @@ def send_telegram(msg):
 
         telegram_messages.append({
             "msg": msg,
-            "time": datetime.datetime.now().strftime("%H:%M:%S")
+            "time": get_ist_time()
         })
     except Exception as e:
         print("Telegram Error:", e)
@@ -124,7 +129,7 @@ def get_signal_for(symbol, name):
             last_signal[name] = signal
 
             # 🔊 ALERT
-            last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
+            last_alert_time = get_ist_time()
             last_alert_type = signal
 
             # 💼 LOT SIZE
@@ -143,7 +148,7 @@ def get_signal_for(symbol, name):
                 "sl": sl,
                 "target": target,
                 "lot": round(lot_size, 2),
-                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "time": get_ist_time(),
                 "result": "OPEN"
             })
 
