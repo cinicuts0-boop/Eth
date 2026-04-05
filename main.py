@@ -1,176 +1,182 @@
-import requests
-import time
 import yfinance as yf
 import ta
-import os
-from flask import Flask
+import time
 import threading
-from datetime import datetime
+from flask import Flask
 
 app = Flask(__name__)
-
-TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID")
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
     "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
-trade_history = []
-telegram_messages = []
 last_signal = {}
 
-last_alert_time = ""
-last_alert_type = ""
-
-# 🔹 TELEGRAM
-def send_telegram(msg):
-    try:
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-
-        telegram_messages.append({
-            "msg": msg,
-            "time": datetime.now().strftime("%H:%M:%S")
-        })
-    except:
-        print("Telegram Failed")
-
-# 🔹 STATS
-def calculate_stats():
-    total = len(trade_history)
-    wins = sum(1 for t in trade_history if "WIN" in t["result"])
-    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
-    accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
-
-# 🔹 SIGNAL
+# 🔹 SIGNAL FUNCTION
 def get_signal(symbol, name):
-    global last_alert_time, last_alert_type
+
+    global latest_data, last_signal
 
     try:
-        df = yf.download(symbol, period="1d", interval="5m", progress=False)
+        df = yf.download(
+            symbol,
+            period="1d",
+            interval="5m",
+            progress=False
+        )
 
-        if df.empty:
+        if df is None or df.empty:
+            print(name, "No Data")
             return
 
-        close = df["Close"].squeeze().dropna()
+        close = df["Close"]
+
+        # Fix multi-dimension issue
+        if len(close.shape) > 1:
+            close = close.squeeze()
+
+        close = close.dropna()
 
         if len(close) < 30:
             return
 
-        rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
-        macd = ta.trend.MACD(close)
+        # RSI
+        rsi_series = ta.momentum.RSIIndicator(close).rsi()
 
-        macd_val = macd.macd().iloc[-1]
-        macd_sig = macd.macd_signal().iloc[-1]
+        # MACD
+        macd_obj = ta.trend.MACD(close)
+
+        rsi_val = float(rsi_series.iloc[-1])
+        macd_val = float(macd_obj.macd().iloc[-1])
+        macd_sig = float(macd_obj.macd_signal().iloc[-1])
 
         price = float(close.iloc[-1])
 
         signal = "WAITING"
 
-        if rsi < 40 and macd_val > macd_sig:
+        if rsi_val < 40 and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi > 60 and macd_val < macd_sig:
+
+        elif rsi_val > 60 and macd_val < macd_sig:
             signal = "SELL"
 
         latest_data[name] = {
             "price": round(price, 2),
-            "rsi": round(rsi, 2),
+            "rsi": round(rsi_val, 2),
             "signal": signal
         }
 
-        if signal == last_signal.get(name):
-            return
+        if signal != last_signal.get(name):
 
-        if signal != "WAITING":
             last_signal[name] = signal
 
-            last_alert_time = datetime.now().strftime("%H:%M:%S")
-            last_alert_type = signal
-
-            trade_history.append({
-                "coin": name,
-                "type": signal,
-                "price": price,
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "result": "OPEN"
-            })
-
-            send_telegram(f"{name} {signal} @ {price}")
+            print(
+                name,
+                "| Price:",
+                round(price, 2),
+                "| RSI:",
+                round(rsi_val, 2),
+                "| Signal:",
+                signal
+            )
 
     except Exception as e:
+
         print(name, "ERROR:", e)
 
-# 🔹 RESULT
-def update_results():
-    for t in trade_history:
-        if t["result"] == "OPEN":
-
-            price = latest_data.get(t["coin"], {}).get("price", 0)
-            entry = t["price"]
-
-            if t["type"] == "BUY":
-                if price >= entry + 10:
-                    t["result"] = "WIN ✅"
-                elif price <= entry - 10:
-                    t["result"] = "LOSS ❌"
-
-            elif t["type"] == "SELL":
-                if price <= entry - 10:
-                    t["result"] = "WIN ✅"
-                elif price >= entry + 10:
-                    t["result"] = "LOSS ❌"
-
-# 🔹 LOOP
+# 🔹 BOT LOOP
 def run_bot():
+
     while True:
+
         get_signal("ETH-USD", "ETH")
+
         get_signal("BTC-USD", "BTC")
-        update_results()
+
         time.sleep(300)
 
-# 🔹 UI
+# 🔹 DASHBOARD UI
 @app.route("/")
-def home():
+def dashboard():
 
     cards = ""
 
-    for coin, d in latest_data.items():
+    for coin, data in latest_data.items():
 
         color = "#FFD700"
-        if d["signal"] == "BUY":
-            color = "green"
-        elif d["signal"] == "SELL":
-            color = "red"
+
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
 
         cards += f"""
-        <div style="border:1px solid gold;margin:10px;padding:10px">
+        <div class="box">
         <h2>{coin}</h2>
-        <p>{d['price']}</p>
-        <p style='color:{color}'>{d['signal']}</p>
+        <p>Price: {data['price']}</p>
+        <p>RSI: {data['rsi']}</p>
+        <p style="color:{color}">
+        Signal: {data['signal']}
+        </p>
         </div>
         """
 
     return f"""
     <html>
-    <body style="background:black;color:gold;text-align:center">
 
-    <h1>🚀 Mani Bot</h1>
+    <head>
+
+    <style>
+
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        text-align:center;
+        font-family:Arial;
+    }}
+
+    .box {{
+        background:#1e293b;
+        padding:20px;
+        margin:10px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+
+    </style>
+
+    </head>
+
+    <body>
+
+    <h1>🚀 Mani Money Mindset 💸</h1>
 
     {cards}
 
     <script>
-    setTimeout(()=>location.reload(),10000)
+
+    setTimeout(() => {{
+        location.reload();
+    }}, 60000);
+
     </script>
 
     </body>
+
     </html>
     """
 
 # 🔹 START
 if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
-    app.run(host="0.0.0.0", port=8080)
+
+    threading.Thread(
+        target=run_bot,
+        daemon=True
+    ).start()
+
+    app.run(
+        host="0.0.0.0",
+        port=8080
+    )
