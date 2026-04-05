@@ -454,7 +454,7 @@ def tricks_page():
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
-    total, wins, loss, pnl, accuracy = calculate_stats()
+    total, wins, loss, pnl, accuracy, percent = calculate_stats()
     percent = ((account_balance - 10000) / 10000) * 100
 
     history = "".join([
