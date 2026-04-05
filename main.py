@@ -422,9 +422,20 @@ def dashboard():
     </style>
     </head>
     <body>
-    {common_header()}
-    {cards}
-    </body>
+
+{common_header()}
+{cards}
+
+<!-- ✅ GRAPH -->
+<canvas id="chart"></canvas>
+
+<!-- ✅ JS -->
+<script src="chart.js"></script>
+<script>
+...
+</script>
+
+</body>
     </html>
     """
     
@@ -631,6 +642,28 @@ def coin_detail(name):
     <br>
     <a href="/">⬅ Back</a>
     <canvas id="chart" width="300" height="150"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+function drawChart(data){
+    const ctx = document.getElementById('chart');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map((_,i)=>i+1),
+            datasets: [{
+                label: 'Balance',
+                data: data
+            }]
+        }
+    });
+}
+
+fetch('/equity').then(r=>r.json()).then(d=>{
+    drawChart(d.data);
+});
+</script>
 
     </body>
     </html>
