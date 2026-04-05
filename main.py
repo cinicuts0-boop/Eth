@@ -12,6 +12,15 @@ import pytz
 def get_ist_time():
     ist = pytz.timezone('Asia/Kolkata')
     return datetime.now(ist).strftime("%H:%M:%S")
+def get_trade_duration(start_time):
+    try:
+        fmt = "%H:%M:%S"
+        now = datetime.strptime(get_ist_time(), fmt)
+        start = datetime.strptime(start_time, fmt)
+        diff = now - start
+        return str(diff)
+    except:
+        return "0:00:00"
 
 app = Flask(__name__)
 
@@ -35,6 +44,7 @@ last_signal = {}
 # 🔊 NEW
 last_alert_time = ""
 last_alert_type = ""
+last_report_date = ""
 
 # 💰 ACCOUNT SETTINGS
 account_balance = 10000   # starting balance
@@ -77,7 +87,16 @@ def calculate_stats():
 
     return total, wins, loss, round(total_pnl, 2), round(accuracy, 2), round(percent_return, 2)
 
-# 🔹 SIGNAL
+def today_pnl():
+    today = get_ist_time().split(":")[0]  # hour மட்டும் check (simple)
+    pnl = 0
+
+    for t in trade_history:
+        if t["result"] != "OPEN":
+            pnl += t.get("live_pnl", 0)
+
+    return round(pnl, 2)
+    
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
@@ -194,6 +213,34 @@ def update_results():
                     trade["result"] = "LOSS ❌"
                     account_balance += pnl
 
+def send_daily_report():
+    global last_report_date
+
+    now = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))
+    today = now.strftime("%Y-%m-%d")
+
+    if last_report_date == today:
+        return
+
+    if now.hour == 23 and now.minute >= 59:
+
+        total, wins, loss, pnl, acc, percent = calculate_stats()
+
+        msg = f"""
+📅 DAILY REPORT
+
+💰 Balance: ₹{round(account_balance,2)}
+📊 Trades: {total}
+✅ Wins: {wins}
+❌ Loss: {loss}
+📈 Accuracy: {acc}%
+💸 PnL: {pnl}
+📊 Return: {percent}%
+"""
+
+        send_telegram(msg)
+        last_report_date = today
+        
 # 🔹 BOT LOOP
 def run_bot():
     while True:
@@ -205,6 +252,7 @@ def run_bot():
             get_signal_for("CL=F", "CRUDE")
 
             update_results()   # ✅ same level
+            send_daily_report()
 
             time.sleep(300)
 
@@ -463,7 +511,7 @@ def coin_detail(name):
     percent = ((account_balance - 10000) / 10000) * 100
 
     history = "".join([
-    f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | PnL: {t.get('live_pnl',0)}</p>"
+    f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | ⏱ {get_trade_duration(t['time'])} | 💰 {t.get('live_pnl',0)}</p>"
     for t in trade_history if t["coin"] == name
 ][-10:])
 
@@ -560,6 +608,7 @@ def coin_detail(name):
     <p>Balance: ₹{round(account_balance,2)}</p>
     <p>Accuracy: {accuracy}%</p>
     <p>Total PnL: {pnl}</p>
+    <p>Today PnL: ₹{today_pnl()}</p>
     <p>Return: {round(percent,2)}%</p>
 </div>
 
