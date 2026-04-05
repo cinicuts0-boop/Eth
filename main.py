@@ -189,13 +189,14 @@ def update_results():
 def run_bot():
     while True:
         try:
-          get_signal_for("ETH-USD", "ETH")
-          get_signal_for("BTC-USD", "BTC")
-          get_signal_for("^NSEI", "NIFTY")
-          get_signal_for("^NSEBANK", "BANKNIFTY")
-          # get_signal_for("CL=F", "CRUDE")   ✅ fix
+            get_signal_for("ETH-USD", "ETH")
+            get_signal_for("BTC-USD", "BTC")
+            get_signal_for("^NSEI", "NIFTY")
+            get_signal_for("^NSEBANK", "BANKNIFTY")
+            # get_signal_for("CL=F", "CRUDE")
 
-            update_results()
+            update_results()   # ✅ same level
+
             time.sleep(300)
 
         except Exception as e:
