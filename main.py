@@ -2,9 +2,15 @@ import yfinance as yf
 import ta
 import time
 import threading
+import requests
 from flask import Flask
+from datetime import datetime
 
 app = Flask(__name__)
+
+# 🔐 Telegram details
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+CHAT_ID = "YOUR_CHAT_ID"
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
@@ -12,6 +18,31 @@ latest_data = {
 }
 
 last_signal = {}
+telegram_messages = []
+
+# 🔹 TELEGRAM FUNCTION
+def send_telegram(msg):
+
+    try:
+
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+
+        requests.post(
+            url,
+            data={
+                "chat_id": CHAT_ID,
+                "text": msg
+            }
+        )
+
+        telegram_messages.append({
+            "msg": msg,
+            "time": datetime.now().strftime("%H:%M:%S")
+        })
+
+    except Exception as e:
+
+        print("Telegram Error:", e)
 
 # 🔹 SIGNAL FUNCTION
 def get_signal(symbol, name):
@@ -19,6 +50,7 @@ def get_signal(symbol, name):
     global latest_data, last_signal
 
     try:
+
         df = yf.download(
             symbol,
             period="1d",
@@ -67,6 +99,7 @@ def get_signal(symbol, name):
             "signal": signal
         }
 
+        # 🔔 Send only new signal
         if signal != last_signal.get(name):
 
             last_signal[name] = signal
@@ -80,6 +113,20 @@ def get_signal(symbol, name):
                 "| Signal:",
                 signal
             )
+
+            if signal != "WAITING":
+
+                msg = f"""
+🚀 {name} SIGNAL
+
+Type: {signal}
+Price: {round(price,2)}
+RSI: {round(rsi_val,2)}
+
+Time: {datetime.now().strftime("%H:%M:%S")}
+"""
+
+                send_telegram(msg)
 
     except Exception as e:
 
