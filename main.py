@@ -73,6 +73,7 @@ def calculate_stats():
     return total, wins, loss, round(total_pnl, 2), round(accuracy, 2), round(percent_return, 2)
 
 # 🔹 SIGNAL
+# 🔹 SIGNAL
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
 
@@ -114,10 +115,12 @@ def get_signal_for(symbol, name):
             "signal": signal
         }
 
+        # ❗ FIX: indentation correct
         if signal == last_signal.get(name):
             return
 
         if signal != "WAITING":
+
             last_signal[name] = signal
 
             # 🔊 ALERT
@@ -299,22 +302,24 @@ def dashboard():
         .then(res => res.json())
         .then(data => {{
 
-            for (let coin in data) {{
+            .then(data => {
 
-                let price = data[coin].price;
-                let signal = data[coin].signal;
+    for (let coin in data.data) {
 
-                document.getElementById(coin + "_price").innerText = price;
-                document.getElementById(coin + "_signal").innerText = signal;
+        let price = data.data[coin].price;
+        let signal = data.data[coin].signal;
 
-                let color = "#FFD700";
-                if (signal === "BUY") color = "#22c55e";
-                if (signal === "SELL") color = "#ef4444";
+        document.getElementById(coin + "_price").innerText = price;
+        document.getElementById(coin + "_signal").innerText = signal;
 
-                document.getElementById(coin + "_signal").style.color = color;
-            }}
+        let color = "#FFD700";
+        if (signal === "BUY") color = "#22c55e";
+        if (signal === "SELL") color = "#ef4444";
 
-        }});
+        document.getElementById(coin + "_signal").style.color = color;
+    }
+
+});
     }}
 
     setInterval(updateData, 5000);
