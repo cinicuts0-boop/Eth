@@ -40,6 +40,7 @@ latest_data = {
 trade_history = []
 telegram_messages = []
 last_signal = {}
+equity_curve = []
 
 # 🔊 NEW
 last_alert_time = ""
@@ -57,7 +58,11 @@ def live_data():
         "last_alert_time": last_alert_time,
         "last_alert_type": last_alert_type
     }
-
+    
+@app.route("/equity")
+def equity():
+    return {"data": equity_curve}
+    
 # 🔹 TELEGRAM
 def send_telegram(msg):
     try:
@@ -96,6 +101,7 @@ def today_pnl():
             pnl += t.get("live_pnl", 0)
 
     return round(pnl, 2)
+
     
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
@@ -128,9 +134,9 @@ def get_signal_for(symbol, name):
 
         signal = "WAITING"
 
-        if rsi_val < 40 and macd_val > macd_sig:
+        if rsi < 35 and macd_val > macd_sig and price > close.iloc[-5]:
             signal = "BUY"
-        elif rsi_val > 60 and macd_val < macd_sig:
+        elif rsi > 65 and macd_val < macd_sig and price < close.iloc[-5]:
             signal = "SELL"
 
         latest_data[name] = {
@@ -195,6 +201,7 @@ def update_results():
                 pnl = (entry - current_price) * lot
 
             trade["live_pnl"] = round(pnl, 2)
+            equity_curve.append(round(account_balance, 2))
 
             # 🎯 CLOSE TRADE
             if trade["type"] == "BUY":
@@ -607,7 +614,7 @@ def coin_detail(name):
     <p>Balance: ₹{round(account_balance,2)}</p>
     <p>Accuracy: {accuracy}%</p>
     <p>Total PnL: {pnl}</p>
-    <p>Today PnL: ₹{today_pnl()}</p>
+    <p>Today PnL: ₹{get_today_pnl()}</p>
     <p>Return: {round(percent,2)}%</p>
 </div>
 
@@ -623,6 +630,7 @@ def coin_detail(name):
 
     <br>
     <a href="/">⬅ Back</a>
+    <canvas id="chart" width="300" height="150"></canvas>
 
     </body>
     </html>
