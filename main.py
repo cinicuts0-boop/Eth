@@ -189,11 +189,11 @@ def update_results():
 def run_bot():
     while True:
         try:
-            get_signal_for("ETH-USD", "ETH")
-            get_signal_for("BTC-USD", "BTC")
-            get_signal_for("^NSEI", "NIFTY")
-            get_signal_for("^NSEBANK", "BANKNIFTY")
-            get_signal_for("CL=F", "CRUDE")
+          get_signal_for("ETH-USD", "ETH")
+          get_signal_for("BTC-USD", "BTC")
+          get_signal_for("^NSEI", "NIFTY")
+          get_signal_for("^NSEBANK", "BANKNIFTY")
+          # get_signal_for("CL=F", "CRUDE")   ✅ fix
 
             update_results()
             time.sleep(300)
