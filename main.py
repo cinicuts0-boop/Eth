@@ -106,7 +106,7 @@ def get_signal_for(symbol, name):
         }
 
         if signal == last_signal.get(name):
-    return
+            return
 
 if signal != "WAITING":
     last_signal[name] = signal
