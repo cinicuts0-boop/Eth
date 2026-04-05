@@ -108,46 +108,32 @@ def get_signal_for(symbol, name):
         if signal == last_signal.get(name):
             return
 
-if signal != "WAITING":
-    last_signal[name] = signal
+        if signal != "WAITING":
+            last_signal[name] = signal
 
-    # 💼 LOT SIZE
-    risk_amount = account_balance * risk_per_trade
-
-    sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
-    target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
-
-    sl_distance = abs(price - sl)
-    lot_size = risk_amount / sl_distance if sl_distance != 0 else 0
-
-    trade_history.append({
-        "coin": name,
-        "type": signal,
-        "price": round(price, 2),
-        "sl": sl,
-        "target": target,
-        "lot": round(lot_size, 2),
-        "time": datetime.datetime.now().strftime("%H:%M:%S"),
-        "result": "OPEN"
-    })
-
-            # 🔊 ALERT UPDATE
+            # 🔊 ALERT
             last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
             last_alert_type = signal
+
+            # 💼 LOT SIZE
+            risk_amount = account_balance * risk_per_trade
 
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
-            
+            sl_distance = abs(price - sl)
+            lot_size = risk_amount / sl_distance if sl_distance != 0 else 0
 
-            msg = f"""
-🚀 {name} SIGNAL
-Type: {signal}
-Entry: {price:.2f}
-Target: {target}
-SL: {sl}
-"""
-            send_telegram(msg)
+            trade_history.append({
+                "coin": name,
+                "type": signal,
+                "price": round(price, 2),
+                "sl": sl,
+                "target": target,
+                "lot": round(lot_size, 2),
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "result": "OPEN"
+            })
 
     except Exception as e:
         print(name, "ERROR:", e)
