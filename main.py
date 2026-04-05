@@ -34,6 +34,14 @@ risk_per_trade = 0.02     # 2% risk
 last_alert_time = ""
 last_alert_type = ""
 
+@app.route("/data")
+def live_data():
+    return {
+        "data": latest_data,
+        "last_alert_time": last_alert_time,
+        "last_alert_type": last_alert_type
+    }
+
 # 🔹 TELEGRAM
 def send_telegram(msg):
     try:
