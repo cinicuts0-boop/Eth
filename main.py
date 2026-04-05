@@ -12,7 +12,7 @@ app = Flask(__name__)
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-# 💰 ACCOUNT SETTINGS
+# 💰 ACCOUNT
 account_balance = 10000
 risk_per_trade = 0.02
 
@@ -32,15 +32,49 @@ def send_telegram(msg):
             "chat_id": CHAT_ID,
             "text": msg
         })
-    except Exception as e:
-        print("Telegram Error:", e)
+    except:
+        print("Telegram Error")
+
+# 📊 STATS FUNCTION
+def calculate_stats():
+
+    total = len(trade_history)
+
+    wins = sum(
+        1 for t in trade_history
+        if "WIN" in t["result"]
+    )
+
+    loss = sum(
+        1 for t in trade_history
+        if "LOSS" in t["result"]
+    )
+
+    total_pnl = sum(
+        t.get("pnl",0)
+        for t in trade_history
+    )
+
+    accuracy = (
+        (wins/total)*100
+        if total>0 else 0
+    )
+
+    return (
+        total,
+        wins,
+        loss,
+        round(total_pnl,2),
+        round(accuracy,2)
+    )
 
 # SIGNAL
-def get_signal(symbol, name):
+def get_signal(symbol,name):
 
     global account_balance
 
     try:
+
         df = yf.download(
             symbol,
             period="1d",
@@ -61,36 +95,50 @@ def get_signal(symbol, name):
         macd_sig = macd.macd_signal().iloc[-1]
         price = close.iloc[-1]
 
-        signal = "WAITING"
+        signal="WAITING"
 
         if rsi_val < 40 and macd_val > macd_sig:
-            signal = "BUY"
+            signal="BUY"
 
         elif rsi_val > 60 and macd_val < macd_sig:
-            signal = "SELL"
+            signal="SELL"
 
         latest_data[name] = {
-            "price": round(price, 2),
-            "rsi": round(rsi_val, 2),
+            "price": round(price,2),
+            "rsi": round(rsi_val,2),
             "signal": signal
         }
 
         if signal == last_signal.get(name):
             return
 
-        if signal != "WAITING":
+        if signal!="WAITING":
 
-            last_signal[name] = signal
+            last_signal[name]=signal
 
-            # 💰 Risk Calculation
-            risk_amount = account_balance * risk_per_trade
+            risk_amount = (
+                account_balance
+                * risk_per_trade
+            )
 
-            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
-            target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
+            sl = (
+                round(price-10,2)
+                if signal=="BUY"
+                else round(price+10,2)
+            )
 
-            sl_distance = abs(price - sl)
+            target = (
+                round(price+10,2)
+                if signal=="BUY"
+                else round(price-10,2)
+            )
 
-            lot_size = risk_amount / sl_distance if sl_distance != 0 else 0
+            sl_distance = abs(price-sl)
+
+            lot_size = (
+                risk_amount/sl_distance
+                if sl_distance!=0 else 0
+            )
 
             trade_history.append({
                 "coin": name,
@@ -99,11 +147,14 @@ def get_signal(symbol, name):
                 "sl": sl,
                 "target": target,
                 "lot": round(lot_size,2),
-                "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "result": "OPEN"
+                "time":
+                datetime.datetime
+                .now()
+                .strftime("%H:%M:%S"),
+                "result":"OPEN"
             })
 
-            msg = f"""
+            msg=f"""
 {name} SIGNAL
 
 Type: {signal}
@@ -116,7 +167,7 @@ Lot: {round(lot_size,2)}
             send_telegram(msg)
 
     except Exception as e:
-        print(name, "ERROR:", e)
+        print(name,"ERROR:",e)
 
 # RESULT UPDATE
 def update_results():
@@ -125,41 +176,42 @@ def update_results():
 
     for trade in trade_history:
 
-        if trade["result"] != "OPEN":
+        if trade["result"]!="OPEN":
             continue
 
-        price = latest_data[trade["coin"]]["price"]
+        price = latest_data[
+            trade["coin"]
+        ]["price"]
 
         entry = trade["price"]
         lot = trade["lot"]
 
-        # 💰 PnL Calculation
-        if trade["type"] == "BUY":
-            pnl = (price - entry) * lot
+        if trade["type"]=="BUY":
+            pnl=(price-entry)*lot
         else:
-            pnl = (entry - price) * lot
+            pnl=(entry-price)*lot
 
-        trade["pnl"] = round(pnl,2)
+        trade["pnl"]=round(pnl,2)
 
-        if trade["type"] == "BUY":
+        if trade["type"]=="BUY":
 
-            if price >= trade["target"]:
-                trade["result"] = "WIN ✅"
-                account_balance += pnl
+            if price>=trade["target"]:
+                trade["result"]="WIN ✅"
+                account_balance+=pnl
 
-            elif price <= trade["sl"]:
-                trade["result"] = "LOSS ❌"
-                account_balance += pnl
+            elif price<=trade["sl"]:
+                trade["result"]="LOSS ❌"
+                account_balance+=pnl
 
-        if trade["type"] == "SELL":
+        if trade["type"]=="SELL":
 
-            if price <= trade["target"]:
-                trade["result"] = "WIN ✅"
-                account_balance += pnl
+            if price<=trade["target"]:
+                trade["result"]="WIN ✅"
+                account_balance+=pnl
 
-            elif price >= trade["sl"]:
-                trade["result"] = "LOSS ❌"
-                account_balance += pnl
+            elif price>=trade["sl"]:
+                trade["result"]="LOSS ❌"
+                account_balance+=pnl
 
 # BOT LOOP
 def run_bot():
@@ -176,6 +228,9 @@ def run_bot():
 # DASHBOARD
 @app.route("/")
 def home():
+
+    total,wins,loss,
+    pnl,accuracy = calculate_stats()
 
     cards=""
 
@@ -202,44 +257,58 @@ def home():
         """
 
     return f"""
-    <html>
+<html>
 
-    <style>
+<style>
 
-    body {{
-        background:#0f172a;
-        color:#FFD700;
-        text-align:center;
-        font-family:Arial;
-    }}
+body {{
+background:#0f172a;
+color:#FFD700;
+text-align:center;
+font-family:Arial;
+}}
 
-    .box {{
-        background:#1e293b;
-        padding:20px;
-        margin:10px;
-        border-radius:15px;
-        border:1px solid #FFD700;
-    }}
+.box {{
+background:#1e293b;
+padding:20px;
+margin:10px;
+border-radius:15px;
+border:1px solid #FFD700;
+}}
 
-    a {{
-        text-decoration:none;
-        color:#FFD700;
-    }}
+.stat {{
+background:#020617;
+padding:15px;
+margin:10px;
+border-radius:10px;
+}}
 
-    </style>
+a {{
+text-decoration:none;
+color:#FFD700;
+}}
 
-    <body>
+</style>
 
-    <h1>🚀 Mani Money Mindset 💸</h1>
+<body>
 
-    <h3>Balance: ₹{round(account_balance,2)}</h3>
+<h1>🚀 Mani Money Mindset 💸</h1>
 
-    {cards}
+<div class="stat">
+<h3>Balance: ₹{round(account_balance,2)}</h3>
+<p>Total Trades: {total}</p>
+<p>Wins: {wins}</p>
+<p>Loss: {loss}</p>
+<p>Accuracy: {accuracy}%</p>
+<p>Total PnL: {pnl}</p>
+</div>
 
-    </body>
+{cards}
 
-    </html>
-    """
+</body>
+
+</html>
+"""
 
 # COIN PAGE
 @app.route("/coin/<name>")
@@ -252,43 +321,43 @@ def coin_page(name):
         if t["coin"]==name:
 
             history+=f"""
-            <p>
-            {t['time']} |
-            {t['type']} @ {t['price']}
-            → {t['result']}
-            | Lot: {t['lot']}
-            | PnL: {t.get('pnl',0)}
-            </p>
-            """
+<p>
+{t['time']} |
+{t['type']} @ {t['price']}
+→ {t['result']}
+| Lot:{t['lot']}
+| PnL:{t.get('pnl',0)}
+</p>
+"""
 
     return f"""
-    <html>
+<html>
 
-    <style>
+<style>
 
-    body {{
-        background:#0f172a;
-        color:#FFD700;
-        text-align:center;
-        font-family:Arial;
-    }}
+body {{
+background:#0f172a;
+color:#FFD700;
+text-align:center;
+font-family:Arial;
+}}
 
-    </style>
+</style>
 
-    <body>
+<body>
 
-    <h2>{name}</h2>
+<h2>{name}</h2>
 
-    {history if history else "<p>No Trades</p>"}
+{history if history else "<p>No Trades</p>"}
 
-    <br>
+<br>
 
-    <a href="/">⬅ Back</a>
+<a href="/">⬅ Back</a>
 
-    </body>
+</body>
 
-    </html>
-    """
+</html>
+"""
 
 # MAIN
 if __name__ == "__main__":
