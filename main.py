@@ -302,9 +302,9 @@ def dashboard():
         .then(res => res.json())
         .then(data => {{
 
-            .then(data => {
+            .then(data => {{
 
-    for (let coin in data.data) {
+    for (let coin in data.data) {{
 
         let price = data.data[coin].price;
         let signal = data.data[coin].signal;
@@ -317,9 +317,9 @@ def dashboard():
         if (signal === "SELL") color = "#ef4444";
 
         document.getElementById(coin + "_signal").style.color = color;
-    }
+    }}
 
-});
+}});
     }}
 
     setInterval(updateData, 5000);
