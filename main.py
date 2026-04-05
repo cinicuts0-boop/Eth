@@ -214,10 +214,10 @@ def dashboard():
 
         cards += f"""
         <a href="/coin/{coin}">
-        <div class="box"><div class="box {'blink-buy' if data['signal']=='BUY' else 'blink-sell' if data['signal']=='SELL' else ''}">
+        <div class="box">
         <h3>{coin}</h3>
-        <p>{data['price']}</p>
-        <p style="color:{color}">{data['signal']}</p>
+        <p id="{coin}_price">{data['price']}</p>
+        <p id="{coin}_signal" style="color:{color}">{data['signal']}</p>
         </div>
         </a>
         """
@@ -249,9 +249,31 @@ def dashboard():
         localStorage.setItem("lastAlert", lastAlert);
     }}
 
-    setInterval(() => {{
-        location.reload();
-    }}, 60000);
+    // 🔥 LIVE UPDATE (NO REFRESH)
+    function updateData() {{
+        fetch('/data')
+        .then(res => res.json())
+        .then(data => {{
+
+            for (let coin in data) {{
+
+                let price = data[coin].price;
+                let signal = data[coin].signal;
+
+                document.getElementById(coin + "_price").innerText = price;
+                document.getElementById(coin + "_signal").innerText = signal;
+
+                let color = "#FFD700";
+                if (signal === "BUY") color = "#22c55e";
+                if (signal === "SELL") color = "#ef4444";
+
+                document.getElementById(coin + "_signal").style.color = color;
+            }}
+
+        }});
+    }}
+
+    setInterval(updateData, 5000);
     </script>
 
     <style>
@@ -269,26 +291,6 @@ def dashboard():
         border:1px solid #FFD700;
     }}
     a {{text-decoration:none;color:#FFD700;}}
-
-@keyframes blinkGreen {{
-    0% { background-color: #1e293b; }
-    50% { background-color: #22c55e; }
-    100% { background-color: #1e293b; }
-}}
-
-@keyframes blinkRed {{
-    0% { background-color: #1e293b; }
-    50% { background-color: #ef4444; }
-    100% { background-color: #1e293b; }
-}}
-
-.blink-buy {{
-    animation: blinkGreen 1s infinite;
-}}
-
-.blink-sell {{
-    animation: blinkRed 1s infinite;
-}}
     </style>
     </head>
     <body>
@@ -297,7 +299,7 @@ def dashboard():
     </body>
     </html>
     """
-
+    
  # 🔹 RULES PAGE
 @app.route("/rules")
 def rules_page():
@@ -404,7 +406,7 @@ def coin_detail(name):
     <html>
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="60">
+    
 
     <style>
     body {{
