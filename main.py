@@ -27,7 +27,7 @@ telegram_messages = []
 last_signal = {}
 
 # 💰 ACCOUNT SETTINGS
-account_balance = 2000   # starting balance
+account_balance = 10000   # starting balance
 risk_per_trade = 0.02     # 2% risk
 
 # 🔊 NEW
@@ -439,10 +439,11 @@ def tricks_page():
 @app.route("/coin/<name>")
 def coin_detail(name):
     data = latest_data.get(name, {})
-    total, wins, loss, pnl, accuracy, percent = calculate_stats()
+    total, wins, loss, pnl, accuracy = calculate_stats()
+    percent = ((account_balance - 10000) / 10000) * 100
 
     history = "".join([
-    f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | PnL: {t.get('pnl',0)}</p>"
+    f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | PnL: {t.get('live_pnl',0)}</p>"
     for t in trade_history if t["coin"] == name
 ][-10:])
 
@@ -539,7 +540,7 @@ def coin_detail(name):
     <p>Balance: ₹{round(account_balance,2)}</p>
     <p>Accuracy: {accuracy}%</p>
     <p>Total PnL: {pnl}</p>
-    <p>Return: {percent}%</p>
+    <p>Return: {round(percent,2)}%</p>
 </div>
 
     <div class="box">
