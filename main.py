@@ -203,19 +203,21 @@ def signals_page():
 # 🔹 HOME (SOUND ADDED)
 @app.route("/")
 def dashboard():
-   cards = ""
-for coin, data in latest_data.items():
+    cards = ""
 
-    color = "#FFD700"
-    if data["signal"] == "BUY":
-        color = "#22c55e"
-    elif data["signal"] == "SELL":
-        color = "#ef4444"
-    blink_class = ""
-    if data["signal"] == "BUY":
-        blink_class = "blink-buy"
-    elif data["signal"] == "SELL":
-        blink_class = "blink-sell"
+    for coin, data in latest_data.items():
+        color = "#FFD700"
+
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
+
+        blink_class = ""
+        if data["signal"] == "BUY":
+            blink_class = "blink-buy"
+        elif data["signal"] == "SELL":
+            blink_class = "blink-sell"
 
         cards += f"""
         <a href="/coin/{coin}">
