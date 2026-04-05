@@ -69,7 +69,7 @@ def send_telegram(msg):
             "time": get_ist_time()
         })
     except Exception as e:
-        print("Telegram Error:", e)
+        print("Sending Telegram:", msg)
 
 # 🔹 STATS
 def calculate_stats():
@@ -353,7 +353,6 @@ def dashboard():
     function updateData() {{
         fetch('/data')
         .then(res => res.json())
-        .then(data => {{
 
             .then(data => {{
 
