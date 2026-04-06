@@ -1,3 +1,4 @@
+
 import requests
 import time
 import yfinance as yf
@@ -9,8 +10,10 @@ import datetime
 
 app = Flask(__name__)
 
-TOKEN = "YOUR_TOKEN"
-CHAT_ID = "YOUR_CHAT_ID"
+# 🔐 பாதுகாப்புக்கு ENV use பண்ணலாம் (recommended)
+TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
+CHAT_ID = os.getenv("CHAT_ID", "8007854479")
+
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
@@ -24,9 +27,21 @@ trade_history = []
 telegram_messages = []
 last_signal = {}
 
+# 💰 ACCOUNT SETTINGS
+account_balance = 10000   # starting balance
+risk_per_trade = 0.02     # 2% risk
+
 # 🔊 NEW
 last_alert_time = ""
 last_alert_type = ""
+
+@app.route("/data")
+def live_data():
+    return {
+        "data": latest_data,
+        "last_alert_time": last_alert_time,
+        "last_alert_type": last_alert_type
+    }
 
 # 🔹 TELEGRAM
 def send_telegram(msg):
@@ -46,9 +61,16 @@ def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
     loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
+
+    total_pnl = sum(t.get("pnl", 0) for t in trade_history)
+
     accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
+
+    # 📊 % RETURN
+    initial_balance = 10000
+    percent_return = ((account_balance - initial_balance) / initial_balance) * 100
+
+    return total, wins, loss, round(total_pnl, 2), round(accuracy, 2), round(percent_return, 2)
 
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
@@ -98,12 +120,18 @@ def get_signal_for(symbol, name):
         if signal != "WAITING":
             last_signal[name] = signal
 
-            # 🔊 ALERT UPDATE
+            # 🔊 ALERT
             last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
             last_alert_type = signal
 
+            # 💼 LOT SIZE
+            risk_amount = account_balance * risk_per_trade
+
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
+
+            sl_distance = abs(price - sl)
+            lot_size = risk_amount / sl_distance if sl_distance != 0 else 0
 
             trade_history.append({
                 "coin": name,
@@ -111,24 +139,18 @@ def get_signal_for(symbol, name):
                 "price": round(price, 2),
                 "sl": sl,
                 "target": target,
+                "lot": round(lot_size, 2),
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
             })
-
-            msg = f"""
-🚀 {name} SIGNAL
-Type: {signal}
-Entry: {price:.2f}
-Target: {target}
-SL: {sl}
-"""
-            send_telegram(msg)
 
     except Exception as e:
         print(name, "ERROR:", e)
 
 # 🔹 RESULT UPDATE
 def update_results():
+    global account_balance
+
     for trade in trade_history:
         if trade["result"] == "OPEN":
 
@@ -136,17 +158,33 @@ def update_results():
             if current_price == 0:
                 continue
 
+            entry = trade["price"]
+            lot = trade.get("lot", 1)
+
+            # 💰 LIVE PnL
+            if trade["type"] == "BUY":
+                pnl = (current_price - entry) * lot
+            else:
+                pnl = (entry - current_price) * lot
+
+            trade["live_pnl"] = round(pnl, 2)
+
+            # 🎯 CLOSE TRADE
             if trade["type"] == "BUY":
                 if current_price >= trade["target"]:
                     trade["result"] = "WIN ✅"
+                    account_balance += pnl
                 elif current_price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
+                    account_balance += pnl
 
             elif trade["type"] == "SELL":
                 if current_price <= trade["target"]:
                     trade["result"] = "WIN ✅"
+                    account_balance += pnl
                 elif current_price >= trade["sl"]:
                     trade["result"] = "LOSS ❌"
+                    account_balance += pnl
 
 # 🔹 BOT LOOP
 def run_bot():
@@ -156,9 +194,10 @@ def run_bot():
             get_signal_for("BTC-USD", "BTC")
             get_signal_for("^NSEI", "NIFTY")
             get_signal_for("^NSEBANK", "BANKNIFTY")
-            get_signal_for("CL=F", "CRUDE")
+            # get_signal_for("CL=F", "CRUDE")
 
-            update_results()
+            update_results()   # ✅ same level
+
             time.sleep(300)
 
         except Exception as e:
@@ -202,20 +241,27 @@ def signals_page():
 @app.route("/")
 def dashboard():
     cards = ""
-    for coin, data in latest_data.items():
 
+    for coin, data in latest_data.items():
         color = "#FFD700"
+
         if data["signal"] == "BUY":
             color = "#22c55e"
         elif data["signal"] == "SELL":
             color = "#ef4444"
 
+        blink_class = ""
+        if data["signal"] == "BUY":
+            blink_class = "blink-buy"
+        elif data["signal"] == "SELL":
+            blink_class = "blink-sell"
+
         cards += f"""
         <a href="/coin/{coin}">
-        <div class="box">
+        <div class="box {blink_class}">
         <h3>{coin}</h3>
-        <p>{data['price']}</p>
-        <p style="color:{color}">{data['signal']}</p>
+        <p id="{coin}_price">{data['price']}</p>
+        <p id="{coin}_signal" style="color:{color}">{data['signal']}</p>
         </div>
         </a>
         """
@@ -247,9 +293,31 @@ def dashboard():
         localStorage.setItem("lastAlert", lastAlert);
     }}
 
-    setInterval(() => {{
-        location.reload();
-    }}, 60000);
+    // 🔥 LIVE UPDATE (NO REFRESH)
+    function updateData() {{
+        fetch('/data')
+        .then(res => res.json())
+        .then(data => {{
+
+            for (let coin in data) {{
+
+                let price = data[coin].price;
+                let signal = data[coin].signal;
+
+                document.getElementById(coin + "_price").innerText = price;
+                document.getElementById(coin + "_signal").innerText = signal;
+
+                let color = "#FFD700";
+                if (signal === "BUY") color = "#22c55e";
+                if (signal === "SELL") color = "#ef4444";
+
+                document.getElementById(coin + "_signal").style.color = color;
+            }}
+
+        }});
+    }}
+
+    setInterval(updateData, 5000);
     </script>
 
     <style>
@@ -267,11 +335,237 @@ def dashboard():
         border:1px solid #FFD700;
     }}
     a {{text-decoration:none;color:#FFD700;}}
+
+@keyframes blinkGreen {{
+    0% {{ background-color: #1e293b; }}
+    50% {{ background-color: #22c55e; }}
+    100% {{ background-color: #1e293b; }}
+}}
+
+@keyframes blinkRed {{
+    0% {{ background-color: #1e293b; }}
+    50% {{ background-color: #ef4444; }}
+    100% {{ background-color: #1e293b; }}
+}}
+
+.blink-buy {{
+    animation: blinkGreen 1s infinite;
+}}
+
+.blink-sell {{
+    animation: blinkRed 1s infinite;
+}}
     </style>
     </head>
     <body>
     {common_header()}
     {cards}
+    </body>
+    </html>
+    """
+    
+ # 🔹 RULES PAGE
+@app.route("/rules")
+def rules_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        <div class="box">
+            <h3>📜 Contact / Rules</h3>
+            <p>For any queries, contact Mani via Telegram or email.</p>
+            <p>All trading signals are educational; trade at your own risk.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+# 🔹 TRICKS / DMCA PAGE
+@app.route("/tricks")
+def tricks_page():
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: Arial;
+                background: #0f172a;
+                color: #FFD700;
+                text-align: center;
+            }}
+            .box {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 10px auto;
+                width: 90%;
+                border: 1px solid #FFD700;
+            }}
+            a {{
+                color: #FFD700;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>{common_header()}
+        <div class="box">
+            <h3>🛡️ DMCA / Tricks</h3>
+            <p>All content on this website is protected. Please respect copyrights.</p>
+            <p>Do not copy or redistribute without permission.</p>
+        </div>
+        <br>
+        <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+
+# 🔹 COIN PAGE
+@app.route("/coin/<name>")
+def coin_detail(name):
+    data = latest_data.get(name, {})
+    total, wins, loss, pnl, accuracy = calculate_stats()
+    percent = ((account_balance - 10000) / 10000) * 100
+
+    history = "".join([
+    f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']} | PnL: {t.get('live_pnl',0)}</p>"
+    for t in trade_history if t["coin"] == name
+][-10:])
+
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
+
+    symbol = chart_map.get(name)
+
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        font-family: Arial;
+        margin:0;
+        text-align:center;
+    }}
+
+    h1 {{ font-size:20px; }}
+    h2 {{ font-size:18px; }}
+    p {{ font-size:14px; }}
+
+    .nav {{
+        margin:10px;
+        font-size:14px;
+    }}
+
+    .nav a {{
+        padding:6px;
+        color:#FFD700;
+        text-decoration:none;
+    }}
+
+    .box {{
+        background:#1e293b;
+        margin:10px;
+        padding:15px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+
+    iframe {{
+        width:100%;
+        height:250px;
+        border:none;
+    }}
+
+    a {{
+        color:#FFD700;
+        text-decoration:none;
+        font-size:14px;
+    }}
+
+    @media (max-width:600px) {{
+        h1 {{ font-size:18px; }}
+        h2 {{ font-size:16px; }}
+        p {{ font-size:13px; }}
+        iframe {{ height:220px; }}
+    }}
+    </style>
+    </head>
+
+    <body>
+
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
+
+    <div class="nav">
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </div>
+
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+
+    <div class="box">
+    <h3>📊 Performance</h3>
+    <p>Balance: ₹{round(account_balance,2)}</p>
+    <p>Accuracy: {accuracy}%</p>
+    <p>Total PnL: {pnl}</p>
+    <p>Return: {round(percent,2)}%</p>
+</div>
+
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+
+    <div class="box">
+        <h3>📜 History</h3>
+        {history if history else "<p>No trades</p>"}
+    </div>
+
+    <br>
+    <a href="/">⬅ Back</a>
+
     </body>
     </html>
     """
