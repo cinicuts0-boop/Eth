@@ -3,23 +3,22 @@ import time
 import yfinance as yf
 import ta
 import os
-from flask import Flask, send_from_directory
+from flask import Flask, render_template_string, send_from_directory, request
 import threading
 import datetime
 
 app = Flask(__name__)
-TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN_HERE")
-CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID_HERE")
+TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID")
 
-# ===== Global Variables =====
-latest_data = {
-    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
-}
+latest_data = {"ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}}
+
 trade_history = []
+telegram_messages = []
 last_signal = {}
 last_alert_time = ""
 last_alert_type = ""
@@ -29,15 +28,25 @@ rsi_buy_threshold = 35
 rsi_sell_threshold = 65
 macd_diff_threshold = 0.5
 
-# ===== Telegram Alert =====
+# Telegram Notification
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
+        telegram_messages.append({"msg": msg, "time": datetime.datetime.now().strftime("%H:%M:%S")})
     except Exception as e:
         print("Telegram Error:", e)
 
-# ===== Signal Calculation =====
+# Stats
+def calculate_stats():
+    total = len(trade_history)
+    wins = sum(1 for t in trade_history if "WIN" in t["result"])
+    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
+    pnl = (wins * 10) - (loss * 10)
+    accuracy = (wins / total * 100) if total > 0 else 0
+    return total, wins, loss, pnl, round(accuracy, 2)
+
+# Signal Calculation
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
     try:
@@ -54,12 +63,9 @@ def get_signal_for(symbol, name):
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
-        rsi_buy = 35
-        rsi_sell = 65
-        macd_diff_threshold = 0.5
         macd_diff = macd_val - macd_sig
 
-                # Use user-set thresholds
+        # Use user-set thresholds
         if rsi_val < rsi_buy_threshold and macd_diff > macd_diff_threshold:
             signal = "BUY"
         elif rsi_val > rsi_sell_threshold and macd_diff < -macd_diff_threshold:
@@ -88,7 +94,7 @@ def get_signal_for(symbol, name):
     except Exception as e:
         print(name, "ERROR:", e)
 
-# ===== Update Results =====
+# Update Trade Results
 def update_results():
     for trade in trade_history:
         if trade["result"] != "OPEN":
@@ -107,7 +113,7 @@ def update_results():
             elif current_price >= trade["sl"]:
                 trade["result"] = "LOSS ❌"
 
-# ===== Bot Loop =====
+# Bot Loop
 def run_bot():
     while True:
         try:
@@ -122,16 +128,7 @@ def run_bot():
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# ===== Stats =====
-def calculate_stats():
-    total = len(trade_history)
-    wins = sum(1 for t in trade_history if "WIN" in t["result"])
-    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
-    accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
-
-# ===== Common Header =====
+# Common Header
 def common_header():
     return """
     <h1>🚀 Mani Money Mindset 💸</h1>
@@ -142,21 +139,18 @@ def common_header():
     </div>
     """
 
-# ===== Home Page =====
+# Home Dashboard with Threshold Form
 @app.route("/", methods=["GET", "POST"])
 def home():
     global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
 
-    from flask import request
-
-    # Update thresholds if form submitted
     if request.method == "POST":
         try:
             rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
             rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
             macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
         except:
-            pass  # ignore invalid input
+            pass
 
     cards = ""
     for coin, data in latest_data.items():
@@ -212,14 +206,11 @@ def home():
     </html>
     """
 
-# ===== Coin Page =====
+# Coin page
 @app.route("/coin/<name>")
 def coin_page(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
-    chart_map = {"ETH":"BINANCE:ETHUSDT","BTC":"BINANCE:BTCUSDT","NIFTY":"NSE:NIFTY",
-                 "BANKNIFTY":"NSE:BANKNIFTY","CRUDE":"NYMEX:CL1!"}
-    symbol = chart_map.get(name,"")
     history_html = "".join([f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
                             for t in trade_history if t["coin"]==name][-10:])
     html = f"""
@@ -230,54 +221,32 @@ def coin_page(name):
     <style>
         body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
         .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
-        iframe {{width:100%;height:300px;border:none;}}
         a {{color:#FFD700;text-decoration:none;}}
     </style>
     </head>
     <body>
-    {common_header()}
-    <div class="box">
-        <h2>{name}</h2>
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
-    </div>
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
-    </div>
-    <div class="box">
-        <h3>📈 Chart with Signals</h3>
-        <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
-    </div>
-    <div class="box">
-        <h3>📜 Trade History</h3>
-        {history_html if history_html else "<p>No trades</p>"}
-    </div>
-    <audio id="buySound" src="/static/buy.mp3"></audio>
-    <audio id="sellSound" src="/static/sell.mp3"></audio>
-    <script>
-        let lastAlert = "{last_alert_time}";
-        let lastType = "{last_alert_type}";
-        let prevAlert = localStorage.getItem("lastAlert");
-        if(lastAlert !== prevAlert && lastAlert !== "") {{
-            if(lastType === "BUY") {{ document.getElementById("buySound").play(); }}
-            else if(lastType === "SELL") {{ document.getElementById("sellSound").play(); }}
-            localStorage.setItem("lastAlert", lastAlert);
-        }}
-        setInterval(()=>{{ location.reload(); }},60000);
-    </script>
+        {common_header()}
+        <div class="box">
+            <h2>{name}</h2>
+            <p>Price: {data.get('price')}</p>
+            <p>RSI: {data.get('rsi')}</p>
+            <p>Signal: {data.get('signal')}</p>
+        </div>
+        <div class="box">
+            <h3>📜 Trade History</h3>
+            {history_html if history_html else "<p>No trades</p>"}
+        </div>
     </body>
     </html>
     """
     return html
 
-# ===== Static Files =====
+# Static folder
 @app.route('/static/<path:path>')
 def send_static(path):
     return send_from_directory('static', path)
 
-# ===== Start Bot & Flask =====
+# Start Bot & Flask
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 8080))
