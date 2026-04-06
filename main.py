@@ -3,7 +3,7 @@ import time
 import yfinance as yf
 import ta
 import os
-from flask import Flask, send_from_directory, request
+from flask import Flask, request
 import threading
 import datetime
 import pytz
@@ -141,16 +141,9 @@ def run_bot():
 
 # ===== Pages =====
 
+# Home Page
 @app.route("/", methods=["GET","POST"])
 def home():
-    global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
-    if request.method=="POST":
-        try:
-            rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
-            rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
-            macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
-        except: pass
-
     cards=""
     for coin, data in latest_data.items():
         color="#FFD700"
@@ -178,8 +171,33 @@ def home():
     </body></html>
     """
 
+# Alerts Page
+@app.route("/alerts")
+def alerts_page():
+    history_html = "".join([
+        f"<p>{t['time']} | {t['coin']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history[-20:]
+    ])
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="10">
+    <style>
+        body{{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        .box{{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
+    </style>
+    </head>
+    <body>
+    {common_header(active="Alerts")}
+    <div class="box"><h2>📢 Live Alerts</h2>
+    {history_html if history_html else "<p>No alerts yet</p>"}</div>
+    </body></html>
+    """
+
 # ===== Start Bot & Flask =====
 if __name__=="__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT",8080))
     app.run(host="0.0.0.0", port=PORT)
+    
