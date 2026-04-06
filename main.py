@@ -6,376 +6,236 @@ import os
 from flask import Flask
 import threading
 import datetime
-import pytz
 
 app = Flask(__name__)
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-
-# 🕒 IST TIME FUNCTION
-def get_ist_time():
-    ist = pytz.timezone("Asia/Kolkata")
-    return datetime.datetime.now(ist).strftime("%H:%M:%S")
-
-# 💰 ACCOUNT
-account_balance = 10000
-risk_per_trade = 0.02
+# 🔐 பாதுகாப்புக்கு ENV use பண்ணலாம் (recommended)
+TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID")
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"}
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
 }
 
 trade_history = []
+telegram_messages = []
 last_signal = {}
 
-# TELEGRAM
+# 🔹 TELEGRAM
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(
-            url,
-            data={
-                "chat_id": CHAT_ID,
-                "text": msg
-            }
-        )
-    except:
-        print("Telegram Error")
+        requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
 
-# 📊 STATS
+        telegram_messages.append({
+            "msg": msg,
+            "time": datetime.datetime.now().strftime("%H:%M:%S")
+        })
+
+    except Exception as e:
+        print("Telegram Error:", e)
+
+
+# 🔹 STATS
 def calculate_stats():
-
     total = len(trade_history)
+    wins = sum(1 for t in trade_history if t["result"] == "WIN ✅")
+    loss = sum(1 for t in trade_history if t["result"] == "LOSS ❌")
 
-    wins = sum(
-        1 for t in trade_history
-        if "WIN" in t["result"]
-    )
+    pnl = (wins * 10) - (loss * 10)
+    accuracy = (wins / total * 100) if total > 0 else 0
 
-    loss = sum(
-        1 for t in trade_history
-        if "LOSS" in t["result"]
-    )
+    return total, wins, loss, pnl, round(accuracy, 2)
 
-    total_pnl = sum(
-        t.get("pnl",0)
-        for t in trade_history
-    )
 
-    accuracy = (
-        (wins/total)*100
-        if total>0 else 0
-    )
-
-    return (
-        total,
-        wins,
-        loss,
-        round(total_pnl,2),
-        round(accuracy,2)
-    )
-
-# SIGNAL
-def get_signal(symbol,name):
-
-    global account_balance
-
+# 🔹 SIGNAL ENGINE
+def get_signal_for(symbol, name):
     try:
+        df = yf.download(symbol, period="1d", interval="5m", progress=False)
 
-        df = yf.download(
-            symbol,
-            period="1d",
-            interval="5m",
-            progress=False
-        )
-
-        if df.empty:
+        if df is None or df.empty:
             return
 
-        close = df["Close"].squeeze().dropna()
+        close = df['Close'].dropna()
 
-        rsi = ta.momentum.RSIIndicator(close).rsi()
+        if len(close) < 30:
+            return
+
+        rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
         macd = ta.trend.MACD(close)
 
-        rsi_val = rsi.iloc[-1]
         macd_val = macd.macd().iloc[-1]
         macd_sig = macd.macd_signal().iloc[-1]
-        price = close.iloc[-1]
 
-        signal="WAITING"
+        # 🔥 safety check
+        if any(map(lambda x: x is None or str(x) == "nan", [rsi, macd_val, macd_sig])):
+            return
+
+        price = float(close.iloc[-1])
+        rsi_val = float(rsi)
+
+        signal = "WAITING"
 
         if rsi_val < 40 and macd_val > macd_sig:
-            signal="BUY"
-
+            signal = "BUY"
         elif rsi_val > 60 and macd_val < macd_sig:
-            signal="SELL"
+            signal = "SELL"
 
         latest_data[name] = {
-            "price": round(price,2),
-            "rsi": round(rsi_val,2),
+            "price": round(price, 2),
+            "rsi": round(rsi_val, 2),
             "signal": signal
         }
 
+        # ❌ Duplicate signal block
         if signal == last_signal.get(name):
             return
 
-        if signal!="WAITING":
+        if signal != "WAITING":
+            last_signal[name] = signal
 
-            last_signal[name]=signal
+            sl = price - 10 if signal == "BUY" else price + 10
+            target = price + 10 if signal == "BUY" else price - 10
 
-            risk_amount = (
-                account_balance
-                * risk_per_trade
-            )
-
-            sl = (
-                round(price-10,2)
-                if signal=="BUY"
-                else round(price+10,2)
-            )
-
-            target = (
-                round(price+10,2)
-                if signal=="BUY"
-                else round(price-10,2)
-            )
-
-            sl_distance = abs(price-sl)
-
-            lot_size = (
-                risk_amount/sl_distance
-                if sl_distance!=0 else 0
-            )
-
-            trade_history.append({
+            trade = {
                 "coin": name,
                 "type": signal,
-                "price": round(price,2),
-                "sl": sl,
-                "target": target,
-                "lot": round(lot_size,2),
-                "time": get_ist_time(),
-                "result":"OPEN"
-            })
+                "price": round(price, 2),
+                "sl": round(sl, 2),
+                "target": round(target, 2),
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "result": "OPEN"
+            }
 
-            msg=f"""
-🚀 {name} SIGNAL
+            trade_history.append(trade)
 
-Type: {signal}
-Entry: {price:.2f}
-Target: {target}
-SL: {sl}
-Lot: {round(lot_size,2)}
-Time: {get_ist_time()}
-"""
+            msg = (
+                f"🚀 {name} SIGNAL\n"
+                f"Type: {signal}\n"
+                f"Entry: {price:.2f}\n"
+                f"Target: {target:.2f}\n"
+                f"SL: {sl:.2f}"
+            )
 
             send_telegram(msg)
 
     except Exception as e:
-        print(name,"ERROR:",e)
+        print(name, "ERROR:", e)
 
-# RESULT UPDATE
+
+# 🔹 RESULT CHECK
 def update_results():
-
-    global account_balance
-
     for trade in trade_history:
-
-        if trade["result"]!="OPEN":
+        if trade["result"] != "OPEN":
             continue
 
-        price = latest_data[
-            trade["coin"]
-        ]["price"]
+        current_price = latest_data.get(trade["coin"], {}).get("price", 0)
 
-        entry = trade["price"]
-        lot = trade["lot"]
+        if current_price == 0:
+            continue
 
-        if trade["type"]=="BUY":
-            pnl=(price-entry)*lot
-        else:
-            pnl=(entry-price)*lot
+        if trade["type"] == "BUY":
+            if current_price >= trade["target"]:
+                trade["result"] = "WIN ✅"
+            elif current_price <= trade["sl"]:
+                trade["result"] = "LOSS ❌"
 
-        trade["pnl"]=round(pnl,2)
+        elif trade["type"] == "SELL":
+            if current_price <= trade["target"]:
+                trade["result"] = "WIN ✅"
+            elif current_price >= trade["sl"]:
+                trade["result"] = "LOSS ❌"
 
-        if trade["type"]=="BUY":
 
-            if price>=trade["target"]:
-                trade["result"]="WIN ✅"
-                account_balance+=pnl
-
-            elif price<=trade["sl"]:
-                trade["result"]="LOSS ❌"
-                account_balance+=pnl
-
-        if trade["type"]=="SELL":
-
-            if price<=trade["target"]:
-                trade["result"]="WIN ✅"
-                account_balance+=pnl
-
-            elif price>=trade["sl"]:
-                trade["result"]="LOSS ❌"
-                account_balance+=pnl
-
-# BOT LOOP
+# 🔹 BOT LOOP
 def run_bot():
-
     while True:
+        try:
+            get_signal_for("ETH-USD", "ETH")
+            get_signal_for("BTC-USD", "BTC")
+            get_signal_for("^NSEI", "NIFTY")
+            get_signal_for("^NSEBANK", "BANKNIFTY")
+            get_signal_for("CL=F", "CRUDE")
 
-        get_signal("ETH-USD","ETH")
-        get_signal("BTC-USD","BTC")
+            update_results()
+            time.sleep(300)
 
-        update_results()
+        except Exception as e:
+            print("BOT ERROR:", e)
+            time.sleep(60)
 
-        time.sleep(300)
 
-# DASHBOARD
+# 🔹 COMMON HEADER
+def common_header():
+    return """
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
+    <div class="nav">
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </div>
+    """
+
+
+# 🔹 HOME
 @app.route("/")
-def home():
+def dashboard():
+    cards = ""
 
-    total,wins,loss,pnl,accuracy = calculate_stats()
+    for coin, data in latest_data.items():
+        color = "#FFD700"
 
-    cards=""
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
 
-    for coin,data in latest_data.items():
-
-        color="#FFD700"
-
-        if data["signal"]=="BUY":
-            color="#22c55e"
-
-        if data["signal"]=="SELL":
-            color="#ef4444"
-
-        cards+=f"""
-<a href="/coin/{coin}">
-<div class="box">
-<h3>{coin}</h3>
-<p>{data['price']}</p>
-<p style="color:{color}">
-{data['signal']}
-</p>
-</div>
-</a>
-"""
+        cards += f"""
+        <a href="/coin/{coin}">
+        <div class="box">
+        <h3>{coin}</h3>
+        <p>{data['price']}</p>
+        <p style="color:{color}">{data['signal']}</p>
+        </div>
+        </a>
+        """
 
     return f"""
-<html>
+    <html>
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        text-align:center;
+        font-family:Arial;
+    }}
+    .box {{
+        background:#1e293b;
+        padding:20px;
+        margin:10px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+    a {{color:#FFD700;text-decoration:none;}}
+    </style>
 
-<style>
+    <body>
+    {common_header()}
+    {cards}
+    </body>
+    </html>
+    """
 
-body {{
-background:#0f172a;
-color:#FFD700;
-text-align:center;
-font-family:Arial;
-}}
 
-.box {{
-background:#1e293b;
-padding:20px;
-margin:10px;
-border-radius:15px;
-border:1px solid #FFD700;
-}}
-
-.stat {{
-background:#020617;
-padding:15px;
-margin:10px;
-border-radius:10px;
-}}
-
-a {{
-text-decoration:none;
-color:#FFD700;
-}}
-
-</style>
-
-<body>
-
-<h1>🚀 Mani Money Mindset 💸</h1>
-
-<div class="stat">
-<h3>Balance: ₹{round(account_balance,2)}</h3>
-<p>Total Trades: {total}</p>
-<p>Wins: {wins}</p>
-<p>Loss: {loss}</p>
-<p>Accuracy: {accuracy}%</p>
-<p>Total PnL: {pnl}</p>
-<p>Time (IST): {get_ist_time()}</p>
-</div>
-
-{cards}
-
-</body>
-
-</html>
-"""
-
-# COIN PAGE
-@app.route("/coin/<name>")
-def coin_page(name):
-
-    history=""
-
-    for t in trade_history:
-
-        if t["coin"]==name:
-
-            history+=f"""
-<p>
-{t['time']} |
-{t['type']} @ {t['price']}
-→ {t['result']}
-| Lot:{t['lot']}
-| PnL:{t.get('pnl',0)}
-</p>
-"""
-
-    return f"""
-<html>
-
-<style>
-
-body {{
-background:#0f172a;
-color:#FFD700;
-text-align:center;
-font-family:Arial;
-}}
-
-</style>
-
-<body>
-
-<h2>{name}</h2>
-
-{history if history else "<p>No Trades</p>"}
-
-<br>
-
-<a href="/">⬅ Back</a>
-
-</body>
-
-</html>
-"""
-
-# MAIN
+# 🔹 START
 if __name__ == "__main__":
+    threading.Thread(target=run_bot, daemon=True).start()
 
-    threading.Thread(
-        target=run_bot,
-        daemon=True
-    ).start()
-
-    app.run(
-        host="0.0.0.0",
-        port=8080
-    )
-    \
+    PORT = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=PORT)
