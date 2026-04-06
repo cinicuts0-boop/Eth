@@ -148,7 +148,6 @@ def home():
         color = "#FFD700"
         if data["signal"] == "BUY": color = "#22c55e"
         elif data["signal"] == "SELL": color = "#ef4444"
-
         cards += f"""
         <div class="box">
             <h3>{coin}</h3>
@@ -157,7 +156,6 @@ def home():
             <a href="/coin/{coin}">View Details</a>
         </div>
         """
-
     return f"""
     <html>
     <head>
@@ -170,58 +168,85 @@ def home():
     <body>
         {common_header()}
         {cards}
-
-        <!-- Audio Elements -->
         <audio id="buySound" src="/static/buy.mp3"></audio>
         <audio id="sellSound" src="/static/sell.mp3"></audio>
-
         <script>
-    let lastAlert = "{last_alert_time}";
-    let lastType = "{last_alert_type}";
-    let prevAlert = localStorage.getItem("lastAlert");
+            let lastAlert = "{last_alert_time}";
+            let lastType = "{last_alert_type}";
+            let prevAlert = localStorage.getItem("lastAlert");
 
-    if(lastAlert !== prevAlert && lastAlert !== ""){{
-        if(lastType === "BUY"){{ document.getElementById("buySound").play(); }}
-        else if(lastType === "SELL"){{ document.getElementById("sellSound").play(); }}
-        localStorage.setItem("lastAlert", lastAlert);
-    }}
-    setInterval(()=>{{ location.reload(); }}, 60000);
-</script>
+            if(lastAlert !== prevAlert && lastAlert !== ""){{
+                if(lastType === "BUY"){{ document.getElementById("buySound").play(); }}
+                else if(lastType === "SELL"){{ document.getElementById("sellSound").play(); }}
+                localStorage.setItem("lastAlert", lastAlert);
+            }}
+            setInterval(()=>{{ location.reload(); }}, 60000);
+        </script>
     </body>
     </html>
     """
-
 # Coin page
 @app.route("/coin/<name>")
 def coin_page(name):
-    data = latest_data.get(name,{})
+    data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
+    chart_map = {"ETH":"BINANCE:ETHUSDT","BTC":"BINANCE:BTCUSDT","NIFTY":"NSE:NIFTY",
+                 "BANKNIFTY":"NSE:BANKNIFTY","CRUDE":"NYMEX:CL1!"}
+    symbol = chart_map.get(name,"")
+    signals_overlay = [{"time":t["time"],"type":t["type"],"price":t["price"]}
+                       for t in trade_history if t["coin"]==name][-10:]
     history_html = "".join([f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
                             for t in trade_history if t["coin"]==name][-10:])
-    return f"""
-    <html><head><style>
-    body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
-    .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
-    a {{color:#FFD700;text-decoration:none;}}
-    </style></head>
-    <body>{common_header()}
-    <div class='box'><h2>{name}</h2><p>Price:{data.get('price')}</p><p>RSI:{data.get('rsi')}</p><p>Signal:{data.get('signal')}</p></div>
-    <div class='box'><h3>Trade History</h3>{history_html if history_html else "<p>No trades</p>"}</div>
-    <a href='/'>⬅ Back</a>
-<script>
-    let lastAlert = "{last_alert_time}";
-    let lastType = "{last_alert_type}";
-    let prevAlert = localStorage.getItem("lastAlert");
+    html = f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
+        iframe {{width:100%;height:300px;border:none;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+    {common_header()}
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
+    </div>
+    <div class="box">
+        <h3>📈 Chart with Signals</h3>
+        <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+    <div class="box">
+        <h3>📜 Trade History</h3>
+        {history_html if history_html else "<p>No trades</p>"}
+    </div>
+    <audio id="buySound" src="/static/buy.mp3"></audio>
+    <audio id="sellSound" src="/static/sell.mp3"></audio>
+    <script>
+        let lastAlert = "{last_alert_time}";
+        let lastType = "{last_alert_type}";
+        let prevAlert = localStorage.getItem("lastAlert");
 
-    if(lastAlert !== prevAlert && lastAlert !== ""){{
-        if(lastType === "BUY"){{ document.getElementById("buySound").play(); }}
-        else if(lastType === "SELL"){{ document.getElementById("sellSound").play(); }}
-        localStorage.setItem("lastAlert", lastAlert);
-    }}
-    setInterval(()=>{{ location.reload(); }}, 60000);
-</script></body></html>
+        if(lastAlert !== prevAlert && lastAlert !== ""){{
+            if(lastType === "BUY"){{ document.getElementById("buySound").play(); }}
+            else if(lastType === "SELL"){{ document.getElementById("sellSound").play(); }}
+            localStorage.setItem("lastAlert", lastAlert);
+        }}
+        setInterval(()=>{{ location.reload(); }},60000);
+    </script>
+    </body>
+    </html>
     """
-
+    return html
 # Static files
 @app.route('/static/<path:path>')
 def send_static(path):
