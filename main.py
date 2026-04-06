@@ -186,6 +186,138 @@ def home():
     </html>
     """
 
+# ===== Rules Page =====
+@app.route("/rules")
+def rules_page():
+    rules_html = """
+    <ul style="text-align:left; max-width:600px; margin:auto;">
+        <li>✅ Always set stop-loss before entering a trade.</li>
+        <li>✅ Do not risk more than 2% of capital per trade.</li>
+        <li>✅ Follow RSI & MACD signals for entry/exit.</li>
+        <li>✅ Avoid trading during high volatility news.</li>
+        <li>✅ Keep a trade journal to track performance.</li>
+    </ul>
+    """
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+    {common_header(active="Rules")}
+    <h2>📜 Trading Rules</h2>
+    {rules_html}
+    </body>
+    </html>
+    """
+
+# ===== Tricks Page =====
+@app.route("/tricks")
+def tricks_page():
+    tricks_html = """
+    <ul style="text-align:left; max-width:600px; margin:auto;">
+        <li>💡 Use multiple timeframes for confirmation.</li>
+        <li>💡 Avoid overtrading; wait for high-probability setups.</li>
+        <li>💡 Take partial profits to lock gains.</li>
+        <li>💡 Monitor correlation between assets.</li>
+        <li>💡 Review losing trades to improve strategy.</li>
+    </ul>
+    """
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+    {common_header(active="Tricks")}
+    <h2>💡 Trading Tricks</h2>
+    {tricks_html}
+    </body>
+    </html>
+    """
+
+# ===== Thresholds Page =====
+@app.route("/thresholds", methods=["GET","POST"])
+def thresholds_page():
+    global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
+    if request.method == "POST":
+        try:
+            rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
+            rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
+            macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
+        except:
+            pass
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+    body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+    .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+    input {{width:60px;text-align:center;}}
+    button {{padding:5px 10px; margin-left:10px;}}
+    </style>
+    </head>
+    <body>
+    {common_header(active="Thresholds")}
+    <div class="box">
+        <h3>⚙️ Adjust Thresholds</h3>
+        <form method="POST">
+            RSI Buy: <input name="rsi_buy" value="{rsi_buy_threshold}"/>
+            RSI Sell: <input name="rsi_sell" value="{rsi_sell_threshold}"/>
+            MACD Diff: <input name="macd_diff" value="{macd_diff_threshold}"/>
+            <button type="submit">Update</button>
+        </form>
+    </div>
+    </body>
+    </html>
+    """
+
+# ===== Signals Page =====
+@app.route("/signals")
+def signals_page():
+    cards = ""
+    chart_map = {"ETH":"BINANCE:ETHUSDT","BTC":"BINANCE:BTCUSDT","NIFTY":"NSE:NIFTY",
+                 "BANKNIFTY":"NSE:BANKNIFTY","CRUDE":"NYMEX:CL1!"}
+    for coin, data in latest_data.items():
+        color = "#FFD700"
+        if data["signal"] == "BUY": color = "#22c55e"
+        elif data["signal"] == "SELL": color = "#ef4444"
+        symbol = chart_map.get(coin, "")
+        cards += f"""
+        <div class="box">
+            <h3>{coin}</h3>
+            <p>Price: {data['price']}</p>
+            <p style="color:{color}">Signal: {data['signal']}</p>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+        </div>
+        """
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        .box {{background:#1e293b;padding:15px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+        iframe {{width:100%;height:300px;border:none;margin-top:10px;}}
+    </style>
+    </head>
+    <body>
+    {common_header(active="All Charts")}
+    <h2>📈 Live Signals</h2>
+    {cards}
+    </body>
+    </html>
+    """
+
 # Coin Page
 @app.route("/coin/<name>")
 def coin_page(name):
