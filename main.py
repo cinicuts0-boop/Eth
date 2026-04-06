@@ -176,23 +176,23 @@ def home():
         <audio id="sellSound" src="/static/sell.mp3"></audio>
 
         <script>
-            // Previous alert stored in localStorage
-            let prevAlert = localStorage.getItem("lastAlert");
-            let currentAlert = "{last_alert_time}";
-            let currentType = "{last_alert_type}";
+    // Previous alert stored in localStorage
+    let prevAlert = localStorage.getItem("lastAlert");
+    let currentAlert = "{last_alert_time}";
+    let currentType = "{last_alert_type}";
 
-            if(currentAlert !== prevAlert && currentAlert !== ""){
-                if(currentType === "BUY"){
-                    document.getElementById("buySound").play();
-                } else if(currentType === "SELL"){
-                    document.getElementById("sellSound").play();
-                }
-                localStorage.setItem("lastAlert", currentAlert);
-            }
+    if(currentAlert !== prevAlert && currentAlert !== ""){
+        if(currentType === "BUY"){
+            document.getElementById("buySound").play();
+        } else if(currentType === "SELL"){
+            document.getElementById("sellSound").play();
+        }
+        localStorage.setItem("lastAlert", currentAlert);
+    }
 
-            // Auto refresh every 60 seconds
-            setInterval(()=>{{ location.reload(); }}, 60000);
-        </script>
+    // Auto refresh every 60 seconds
+    setInterval(()=>{ location.reload(); }, 60000);
+</script>
     </body>
     </html>
     """
