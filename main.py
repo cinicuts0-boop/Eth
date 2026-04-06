@@ -215,6 +215,81 @@ def coin_page(name):
     history="".join([f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>" for t in trade_history if t["coin"]==name][-10:])
     return f"<html><body>{common_header()}<h2>{name}</h2><p>Price: {data.get('price')}</p><p>RSI: {data.get('rsi')}</p><p>Signal: {data.get('signal')}</p><h3>Performance</h3><p>Accuracy: {accuracy}% | PnL: {pnl}</p><h3>Trade History</h3>{history if history else '<p>No trades</p>'}</body></html>"
 
+# 🔹 Coin detail page with TradingView chart
+@app.route("/coin/<name>")
+def coin_page(name):
+    data = latest_data.get(name, {})
+    total, wins, loss, pnl, accuracy = calculate_stats()
+
+    history = "".join([
+        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
+
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
+
+    symbol = chart_map.get(name, "")
+
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;margin:0;text-align:center;}}
+        h1 {{ font-size:20px; }}
+        h2 {{ font-size:18px; }}
+        p {{ font-size:14px; }}
+        nav a {{ padding:6px;color:#FFD700;text-decoration:none; }}
+        .box {{ background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700; }}
+        iframe {{ width:100%; height:300px; border:none; }}
+        @media (max-width:600px) {{
+            h1 {{ font-size:18px; }}
+            h2 {{ font-size:16px; }}
+            p {{ font-size:13px; }}
+            iframe {{ height:220px; }}
+        }}
+    </style>
+    </head>
+    <body>
+    <h1>🚀 Mani Money Mindset 💸</h1>
+    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/signals">Signals</a> |
+        <a href="/rules">Rules</a> |
+        <a href="/tricks">Tricks</a>
+    </nav>
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
+    </div>
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+    <div class="box">
+        <h3>📜 Trade History</h3>
+        {history if history else "<p>No trades</p>"}
+    </div>
+    <br>
+    <a href="/">⬅ Back</a>
+    </body>
+    </html>
+    """
+    
 # 🔹 Main
 if __name__=="__main__":
     threading.Thread(target=run_bot, daemon=True).start()
