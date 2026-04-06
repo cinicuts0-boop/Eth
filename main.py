@@ -57,7 +57,7 @@ def common_header(active=None):
     ])
     return f"""
     <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>💚 Mind Over Money ❤️</h4>
+    <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">{nav_html}</div>
     """
 
