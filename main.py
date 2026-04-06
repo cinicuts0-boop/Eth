@@ -154,6 +154,7 @@ def home():
             <a href="/coin/{coin}">View Details</a>
         </div>
         """
+
     return f"""
     <html>
     <head>
@@ -165,28 +166,28 @@ def home():
     </head>
     <body>
         {common_header()}
+
         {cards}
+
         <audio id="buySound" src="/static/buy.mp3"></audio>
         <audio id="sellSound" src="/static/sell.mp3"></audio>
+
         <script>
-    let lastAlert = "{last_alert_time}";
-    let lastType = "{last_alert_type}";
-    let prevAlert = localStorage.getItem("lastAlert");
+            let lastAlert = "{last_alert_time}";
+            let lastType = "{last_alert_type}";
+            let prevAlert = localStorage.getItem("lastAlert");
 
-    if(lastAlert !== prevAlert && lastAlert !== ""){
-        if(lastType == "BUY") {{
-            document.getElementById("buySound").play();
-        }} else if(lastType == "SELL") {{
-            document.getElementById("sellSound").play();
-        }}
-        localStorage.setItem("lastAlert", lastAlert);
-    }}
+            if(lastAlert !== prevAlert && lastAlert !== ""){
+                if(lastType == "BUY") {{
+                    document.getElementById("buySound").play();
+                }} else if(lastType == "SELL") {{
+                    document.getElementById("sellSound").play();
+                }}
+                localStorage.setItem("lastAlert", lastAlert);
+            }}
 
-    // Auto refresh every 60 sec
-    setInterval(() => {{
-        location.reload();
-    }}, 60000);
-</script>
+            setInterval(() => {{ location.reload(); }}, 60000);
+        </script>
     </body>
     </html>
     """
