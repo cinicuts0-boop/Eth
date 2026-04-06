@@ -1,4 +1,3 @@
-
 import requests
 import time
 import yfinance as yf
@@ -7,34 +6,33 @@ import os
 from flask import Flask, render_template_string, send_from_directory
 import threading
 import datetime
-import json
 
 app = Flask(__name__)
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("CHAT_ID", "8007854479")
 
-latest_data = {"ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-               "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
-               "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-               "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-               "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}}
+latest_data = {
+    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
+}
 
 trade_history = []
-telegram_messages = []
 last_signal = {}
 last_alert_time = ""
 last_alert_type = ""
 
-# Telegram Notification
+# ---------------- Telegram Notification ----------------
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
-        telegram_messages.append({"msg": msg, "time": datetime.datetime.now().strftime("%H:%M:%S")})
     except Exception as e:
         print("Telegram Error:", e)
 
-# Stats
+# ---------------- Stats ----------------
 def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
@@ -43,7 +41,7 @@ def calculate_stats():
     accuracy = (wins / total * 100) if total > 0 else 0
     return total, wins, loss, pnl, round(accuracy, 2)
 
-# Signal Calculation
+# ---------------- Signal Calculation ----------------
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
     try:
@@ -85,15 +83,18 @@ def get_signal_for(symbol, name):
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
-            trade_history.append({"coin": name, "type": signal, "price": round(price, 2),
-                                  "sl": sl, "target": target, "time": last_alert_time, "result": "OPEN"})
+            trade_history.append({
+                "coin": name, "type": signal, "price": round(price, 2),
+                "sl": sl, "target": target, "time": last_alert_time, "result": "OPEN"
+            })
 
             msg = f"🚀 {name} SIGNAL\nType: {signal}\nEntry: {price:.2f}\nTarget: {target}\nSL: {sl}"
             send_telegram(msg)
+
     except Exception as e:
         print(name, "ERROR:", e)
 
-# Update Trade Results
+# ---------------- Update Trade Results ----------------
 def update_results():
     for trade in trade_history:
         if trade["result"] != "OPEN":
@@ -112,7 +113,7 @@ def update_results():
             elif current_price >= trade["sl"]:
                 trade["result"] = "LOSS ❌"
 
-# Bot Loop
+# ---------------- Bot Loop ----------------
 def run_bot():
     while True:
         try:
@@ -127,7 +128,7 @@ def run_bot():
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# Common Header
+# ---------------- Common Header ----------------
 def common_header():
     return """
     <h1>🚀 Mani Money Mindset 💸</h1>
@@ -138,7 +139,7 @@ def common_header():
     </div>
     """
 
-# Home Dashboard
+# ---------------- Home Dashboard ----------------
 @app.route("/")
 def home():
     cards = ""
@@ -154,7 +155,6 @@ def home():
             <a href="/coin/{coin}">View Details</a>
         </div>
         """
-
     return f"""
     <html>
     <head>
@@ -166,18 +166,14 @@ def home():
     </head>
     <body>
         {common_header()}
-
         {cards}
-
         <audio id="buySound" src="/static/buy.mp3"></audio>
         <audio id="sellSound" src="/static/sell.mp3"></audio>
-
         <script>
             let lastAlert = "{last_alert_time}";
             let lastType = "{last_alert_type}";
             let prevAlert = localStorage.getItem("lastAlert");
-
-            if(lastAlert !== prevAlert && lastAlert !== ""){
+            if(lastAlert !== prevAlert && lastAlert !== ""){{
                 if(lastType == "BUY") {{
                     document.getElementById("buySound").play();
                 }} else if(lastType == "SELL") {{
@@ -185,48 +181,30 @@ def home():
                 }}
                 localStorage.setItem("lastAlert", lastAlert);
             }}
-
-            setInterval(() => {{ location.reload(); }}, 60000);
+            setInterval(()=>{{ location.reload(); }},60000);
         </script>
     </body>
     </html>
     """
 
-# Static folder for sounds
+# ---------------- Static folder for sounds ----------------
 @app.route('/static/<path:path>')
 def send_static(path):
     return send_from_directory('static', path)
 
-# 🔹 Coin Page with Overlay Signals
+# ---------------- Coin Page ----------------
 @app.route("/coin/<name>")
 def coin_page(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
-
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
-    symbol = chart_map.get(name,"")
-
-    # Last 10 trades for this coin
-    signals_overlay = [
-        {"time": t["time"], "type": t["type"], "price": t["price"]}
-        for t in trade_history if t["coin"] == name
-    ][-10:]
-
+    chart_map = {"ETH":"BINANCE:ETHUSDT","BTC":"BINANCE:BTCUSDT",
+                 "NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","CRUDE":"NYMEX:CL1!"}
+    symbol = chart_map.get(name, "")
     history_html = "".join([
         f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
+        for t in trade_history if t["coin"]==name
     ][-10:])
-
-    # Convert signals_overlay to JSON for JS
-    signals_json = json.dumps(signals_overlay)
-
-    html = f"""
+    return f"""
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -239,57 +217,46 @@ def coin_page(name):
         </style>
     </head>
     <body>
-    {common_header()}
-    <div class="box">
-        <h2>{name}</h2>
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
-    </div>
-
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
-    </div>
-
-    <div class="box">
-        <h3>📈 Chart with Signals</h3>
-        <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
-    </div>
-
-    <div class="box">
-        <h3>📜 Trade History</h3>
-        {history_html if history_html else "<p>No trades</p>"}
-    </div>
-
-    <audio id="buySound" src="/static/buy.mp3"></audio>
-    <audio id="sellSound" src="/static/sell.mp3"></audio>
-
-    <script>
-        const signals = {signals_json};
-        console.log("Overlay signals:", signals);
-
-        let lastAlert = "{last_alert_time}";
-        let lastType = "{last_alert_type}";
-        let prevAlert = localStorage.getItem("lastAlert");
-
-        if(lastAlert !== prevAlert && lastAlert !== ""){
-            if(lastType==="BUY") document.getElementById("buySound").play();
-            else if(lastType==="SELL") document.getElementById("sellSound").play();
-            localStorage.setItem("lastAlert", lastAlert);
-        }
-
-        // Future: Overlay arrows on TradingView chart using signals array
-        // Currently, we console.log() signals. Later, we can use TradingView JS API to plot buy/sell arrows.
-
-        setInterval(()=>{{ location.reload(); }},60000);
-    </script>
+        {common_header()}
+        <div class="box">
+            <h2>{name}</h2>
+            <p>Price: {data.get('price')}</p>
+            <p>RSI: {data.get('rsi')}</p>
+            <p>Signal: {data.get('signal')}</p>
+        </div>
+        <div class="box">
+            <h3>📊 Performance</h3>
+            <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
+        </div>
+        <div class="box">
+            <h3>📈 Chart with Signals</h3>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+        </div>
+        <div class="box">
+            <h3>📜 Trade History</h3>
+            {history_html if history_html else "<p>No trades</p>"}
+        </div>
+        <audio id="buySound" src="/static/buy.mp3"></audio>
+        <audio id="sellSound" src="/static/sell.mp3"></audio>
+        <script>
+            let lastAlert = "{last_alert_time}";
+            let lastType = "{last_alert_type}";
+            let prevAlert = localStorage.getItem("lastAlert");
+            if(lastAlert !== prevAlert && lastAlert !== ""){{
+                if(lastType == "BUY") {{
+                    document.getElementById("buySound").play();
+                }} else if(lastType == "SELL") {{
+                    document.getElementById("sellSound").play();
+                }}
+                localStorage.setItem("lastAlert", lastAlert);
+            }}
+            setInterval(()=>{{ location.reload(); }},60000);
+        </script>
     </body>
     </html>
     """
-    return html
 
-# Start Bot & Flask
+# ---------------- Start Bot & Flask ----------------
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 8080))
