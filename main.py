@@ -146,6 +146,45 @@ def tricks_page():
     </html>
     """
 
+# ===== Alerts Page =====
+@app.route("/alerts")
+def alerts_page():
+    history_html = "".join([
+        f"<p>{t['time']} | {t['coin']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history[-20:]  # last 20 alerts
+    ])
+    html = f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="refresh" content="10">
+        <style>
+            body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+            .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
+        </style>
+    </head>
+    <body>
+        <h1>📢 Live Alerts</h1>
+        <div class="box">
+            {history_html if history_html else "<p>No alerts yet</p>"}
+        </div>
+        <audio id="buySound" src="/static/buy.mp3"></audio>
+        <audio id="sellSound" src="/static/sell.mp3"></audio>
+        <script>
+            let lastAlert = "{last_alert_time}";
+            let lastType = "{last_alert_type}";
+            let prevAlert = localStorage.getItem("lastAlert");
+            if(lastAlert !== prevAlert && lastAlert !== "") {{
+                if(lastType === "BUY") {{ document.getElementById("buySound").play(); }}
+                else if(lastType === "SELL") {{ document.getElementById("sellSound").play(); }}
+                localStorage.setItem("lastAlert", lastAlert);
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    return html    
+
 # ===== Signal Calculation =====
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
@@ -240,7 +279,7 @@ def common_header():
     <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">
         <a href="/">Home</a> | <a href="/signals">Signals</a> | 
-        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a>
+        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a> | <a href="/alerts">Alerts</a>
     </div>
     """
 
