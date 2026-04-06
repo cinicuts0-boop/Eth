@@ -44,8 +44,9 @@ def common_header(active=None):
         ("Alerts", "/alerts"),
         ("Rules", "/rules"),
         ("Tricks", "/tricks"),
-        ("Thresholds", "/thresholds"),
-        ("All Charts", "/signals")
+        ("All Charts", "/signals"), 
+        ("Thresholds", "/Admin")
+        
     ]
     nav_html = " | ".join([
         f'<a href="{url}" style="color:{"#3b82f6" if name==active else "#FFD700"}">{name}</a>'
