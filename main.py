@@ -81,13 +81,16 @@ def get_signal_for(symbol, name):
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
-        # 🔹 Step 1: Updated RSI Thresholds
-        rsi_buy = 35   # Buy signal-க்கு lower threshold
-        rsi_sell = 65  # Sell signal-க்கு higher threshold
+        # 🔹 Step 1 + Step 2: RSI thresholds + MACD difference
+        rsi_buy = 35          # Buy signal lower threshold
+        rsi_sell = 65         # Sell signal higher threshold
+        macd_diff_threshold = 0.5  # Minimum MACD difference to trigger signal
 
-        if rsi_val < rsi_buy and macd_val > macd_sig:
+        macd_diff = macd_val - macd_sig
+
+        if rsi_val < rsi_buy and macd_diff > macd_diff_threshold:
             signal = "BUY"
-        elif rsi_val > rsi_sell and macd_val < macd_sig:
+        elif rsi_val > rsi_sell and macd_diff < -macd_diff_threshold:
             signal = "SELL"
         else:
             signal = "WAITING"
