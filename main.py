@@ -371,7 +371,7 @@ def coin_page(name):
     <html>
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="60">
+    
     <style>
         body{{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;margin:0;padding:0;}}
         .box{{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
