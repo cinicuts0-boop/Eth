@@ -24,8 +24,9 @@ trade_history = []
 telegram_messages = []
 last_signal = {}
 
-# 🔊 NEW (sound alert tracking)
+# 🔊 NEW
 last_alert_time = ""
+last_alert_type = ""
 
 # 🔹 TELEGRAM
 def send_telegram(msg):
@@ -51,7 +52,7 @@ def calculate_stats():
 
 # 🔹 SIGNAL
 def get_signal_for(symbol, name):
-    global latest_data, trade_history, last_signal, last_alert_time
+    global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
 
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
@@ -97,8 +98,9 @@ def get_signal_for(symbol, name):
         if signal != "WAITING":
             last_signal[name] = signal
 
-            # 🔊 update alert time
+            # 🔊 ALERT UPDATE
             last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
+            last_alert_type = signal
 
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
@@ -196,7 +198,7 @@ def signals_page():
     </body></html>
     """
 
-# 🔹 HOME (UPDATED WITH SOUND)
+# 🔹 HOME (SOUND ADDED)
 @app.route("/")
 def dashboard():
     cards = ""
@@ -224,11 +226,24 @@ def dashboard():
 
     <script>
     let lastAlert = "{last_alert_time}";
+    let lastType = "{last_alert_type}";
     let prevAlert = localStorage.getItem("lastAlert");
 
     if (lastAlert !== prevAlert && lastAlert !== "") {{
-        let audio = new Audio('/static/alert.mp3');
-        audio.play();
+
+        let soundFile = "";
+
+        if (lastType === "BUY") {{
+            soundFile = "/static/buy.mp3";
+        }} else if (lastType === "SELL") {{
+            soundFile = "/static/sell.mp3";
+        }}
+
+        if (soundFile !== "") {{
+            let audio = new Audio(soundFile);
+            audio.play();
+        }}
+
         localStorage.setItem("lastAlert", lastAlert);
     }}
 
