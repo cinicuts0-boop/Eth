@@ -182,8 +182,7 @@ def alerts_page():
         </script>
     </body>
     </html>
-    """
-    return html    
+    """    
 
 # ===== Signal Calculation =====
 def get_signal_for(symbol, name):
