@@ -1,25 +1,23 @@
+
 import requests
 import time
 import yfinance as yf
 import ta
 import os
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, send_from_directory
 import threading
 import datetime
 import json
 
 app = Flask(__name__)
-
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("CHAT_ID", "8007854479")
 
-latest_data = {
-    "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
-    "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}
-}
+latest_data = {"ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "BTC": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "NIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "BANKNIFTY": {"price": 0, "rsi": 0, "signal": "WAITING"},
+               "CRUDE": {"price": 0, "rsi": 0, "signal": "WAITING"}}
 
 trade_history = []
 telegram_messages = []
@@ -32,14 +30,11 @@ def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
-        telegram_messages.append({
-            "msg": msg,
-            "time": datetime.datetime.now().strftime("%H:%M:%S")
-        })
+        telegram_messages.append({"msg": msg, "time": datetime.datetime.now().strftime("%H:%M:%S")})
     except Exception as e:
         print("Telegram Error:", e)
 
-# Stats Calculation
+# Stats
 def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
@@ -90,15 +85,8 @@ def get_signal_for(symbol, name):
             sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
             target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
-            trade_history.append({
-                "coin": name,
-                "type": signal,
-                "price": round(price, 2),
-                "sl": sl,
-                "target": target,
-                "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "result": "OPEN"
-            })
+            trade_history.append({"coin": name, "type": signal, "price": round(price, 2),
+                                  "sl": sl, "target": target, "time": last_alert_time, "result": "OPEN"})
 
             msg = f"🚀 {name} SIGNAL\nType: {signal}\nEntry: {price:.2f}\nTarget: {target}\nSL: {sl}"
             send_telegram(msg)
@@ -145,23 +133,19 @@ def common_header():
     <h1>🚀 Mani Money Mindset 💸</h1>
     <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">
-        <a href="/">Home</a> | 
-        <a href="/signals">Signals</a> | 
-        <a href="/rules">Rules</a> | 
-        <a href="/tricks">Tricks</a>
+        <a href="/">Home</a> | <a href="/signals">Signals</a> | 
+        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a>
     </div>
     """
 
-# 🏠 Home Dashboard
+# Home Dashboard
 @app.route("/")
 def home():
     cards = ""
     for coin, data in latest_data.items():
         color = "#FFD700"
-        if data["signal"] == "BUY":
-            color = "#22c55e"
-        elif data["signal"] == "SELL":
-            color = "#ef4444"
+        if data["signal"] == "BUY": color = "#22c55e"
+        elif data["signal"] == "SELL": color = "#ef4444"
         cards += f"""
         <div class="box">
             <h3>{coin}</h3>
@@ -173,93 +157,94 @@ def home():
     return f"""
     <html>
     <head>
-        <style>
-            body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
-            .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
-            a {{color:#FFD700;text-decoration:none;}}
-        </style>
+    <style>
+        body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
+        .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
     </head>
     <body>
         {common_header()}
         {cards}
+        <audio id="buySound" src="/static/buy.mp3"></audio>
+        <audio id="sellSound" src="/static/sell.mp3"></audio>
+        <script>
+            let lastAlert = "{last_alert_time}";
+            let lastType = "{last_alert_type}";
+            let prevAlert = localStorage.getItem("lastAlert");
+            if(lastAlert !== prevAlert && lastAlert !== ""){{
+                if(lastType === "BUY") document.getElementById("buySound").play();
+                else if(lastType === "SELL") document.getElementById("sellSound").play();
+                localStorage.setItem("lastAlert", lastAlert);
+            }}
+            setInterval(()=>{{ location.reload(); }}, 60000);
+        </script>
     </body>
     </html>
     """
 
-# 📄 Coin Details Page with overlay signals
+# Static folder for sounds
+@app.route('/static/<path:path>')
+def send_static(path):
+    return send_from_directory('static', path)
+
+# Coin Page with overlay
 @app.route("/coin/<name>")
 def coin_page(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
-    symbol = chart_map.get(name, "")
-    
-    # Last 10 signals for overlay
-    signals_overlay = [
-        {"time": t["time"], "type": t["type"], "price": t["price"]}
-        for t in trade_history if t["coin"] == name
-    ][-10:]
-    
-    # Last 10 trades history
-    history_html = "".join([
-        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
-    
+    chart_map = {"ETH":"BINANCE:ETHUSDT","BTC":"BINANCE:BTCUSDT","NIFTY":"NSE:NIFTY",
+                 "BANKNIFTY":"NSE:BANKNIFTY","CRUDE":"NYMEX:CL1!"}
+    symbol = chart_map.get(name,"")
+    signals_overlay = [{"time":t["time"],"type":t["type"],"price":t["price"]}
+                       for t in trade_history if t["coin"]==name][-10:]
+    history_html = "".join([f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+                            for t in trade_history if t["coin"]==name][-10:])
     html = f"""
     <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="refresh" content="60">
-        <style>
-            body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
-            .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
-            iframe {{width:100%;height:300px;border:none;}}
-        </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
+        iframe {{width:100%;height:300px;border:none;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
     </head>
     <body>
-        {common_header()}
-        <div class="box">
-            <h2>{name}</h2>
-            <p>Price: {data.get('price')}</p>
-            <p>RSI: {data.get('rsi')}</p>
-            <p>Signal: {data.get('signal')}</p>
-        </div>
-        <div class="box">
-            <h3>📊 Performance</h3>
-            <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
-        </div>
-        <div class="box">
-            <h3>📈 Chart with Signals</h3>
-            <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
-        </div>
-        <div class="box">
-            <h3>📜 Trade History</h3>
-            {history_html if history_html else "<p>No trades</p>"}
-        </div>
-
-        <script>
-            const signals = {json.dumps(signals_overlay)};
-            const iframe = document.getElementById('tv_chart');
-            iframe.onload = function() {{
-                const contentWindow = iframe.contentWindow;
-                if(contentWindow && contentWindow.TradingView) {{
-                    const widget = contentWindow.TradingView.widget;
-                    signals.forEach(s => {{
-                        widget.chart().createShape(
-                            {{time: s.time, price: s.price}},
-                            {{shape: s.type === 'BUY' ? 'arrow_up' : 'arrow_down', color: s.type === 'BUY' ? 'green' : 'red'}}
-                        );
-                    }});
-                }}
-            }};
-        </script>
+    {common_header()}
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
+    </div>
+    <div class="box">
+        <h3>📈 Chart with Signals</h3>
+        <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+    <div class="box">
+        <h3>📜 Trade History</h3>
+        {history_html if history_html else "<p>No trades</p>"}
+    </div>
+    <audio id="buySound" src="/static/buy.mp3"></audio>
+    <audio id="sellSound" src="/static/sell.mp3"></audio>
+    <script>
+        let lastAlert = "{last_alert_time}";
+        let lastType = "{last_alert_type}";
+        let prevAlert = localStorage.getItem("lastAlert");
+        if(lastAlert !== prevAlert && lastAlert !== ""){{
+            if(lastType==="BUY") document.getElementById("buySound").play();
+            else if(lastType==="SELL") document.getElementById("sellSound").play();
+            localStorage.setItem("lastAlert", lastAlert);
+        }}
+        setInterval(()=>{{ location.reload(); }},60000);
+    </script>
     </body>
     </html>
     """
