@@ -81,19 +81,25 @@ def get_signal_for(symbol, name):
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
-        signal = "WAITING"
+        # 🔹 Step 1: Updated RSI Thresholds
+        rsi_buy = 35   # Buy signal-க்கு lower threshold
+        rsi_sell = 65  # Sell signal-க்கு higher threshold
 
-        if rsi_val < 35 and macd_val > macd_sig:
+        if rsi_val < rsi_buy and macd_val > macd_sig:
             signal = "BUY"
-        elif rsi_val > 65 and macd_val < macd_sig:
+        elif rsi_val > rsi_sell and macd_val < macd_sig:
             signal = "SELL"
+        else:
+            signal = "WAITING"
 
+        # 🔹 Update latest_data
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi_val, 2),
             "signal": signal
         }
 
+        # 🔹 Avoid duplicate signals
         if signal == last_signal.get(name):
             return
 
