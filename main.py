@@ -140,23 +140,61 @@ def common_header():
     </div>
     """
 
-# Home route
+# 🔹 Home Dashboard with Sound Alerts
 @app.route("/")
 def home():
     cards = ""
     for coin, data in latest_data.items():
         color = "#FFD700"
-        if data["signal"]=="BUY": color="#22c55e"
-        elif data["signal"]=="SELL": color="#ef4444"
-        cards += f"<div class='box'><h3>{coin}</h3><p>Price:{data['price']}</p><p style='color:{color}'>Signal:{data['signal']}</p><a href='/coin/{coin}'>View</a></div>"
+        if data["signal"] == "BUY": color = "#22c55e"
+        elif data["signal"] == "SELL": color = "#ef4444"
+
+        cards += f"""
+        <div class="box">
+            <h3>{coin}</h3>
+            <p>Price: {data['price']}</p>
+            <p style="color:{color}">Signal: {data['signal']}</p>
+            <a href="/coin/{coin}">View Details</a>
+        </div>
+        """
+
     return f"""
-    <html><head>
+    <html>
+    <head>
     <style>
-    body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
-    .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
-    a {{color:#FFD700;text-decoration:none;}}
-    </style></head>
-    <body>{common_header()}{cards}</body></html>
+        body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
+        .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+        {common_header()}
+        {cards}
+
+        <!-- Audio Elements -->
+        <audio id="buySound" src="/static/buy.mp3"></audio>
+        <audio id="sellSound" src="/static/sell.mp3"></audio>
+
+        <script>
+            // Previous alert stored in localStorage
+            let prevAlert = localStorage.getItem("lastAlert");
+            let currentAlert = "{last_alert_time}";
+            let currentType = "{last_alert_type}";
+
+            if(currentAlert !== prevAlert && currentAlert !== ""){
+                if(currentType === "BUY"){
+                    document.getElementById("buySound").play();
+                } else if(currentType === "SELL"){
+                    document.getElementById("sellSound").play();
+                }
+                localStorage.setItem("lastAlert", currentAlert);
+            }
+
+            // Auto refresh every 60 seconds
+            setInterval(()=>{{ location.reload(); }}, 60000);
+        </script>
+    </body>
+    </html>
     """
 
 # Coin page
