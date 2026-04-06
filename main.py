@@ -45,7 +45,7 @@ def common_header(active=None):
         ("Rules", "/rules"),
         ("Tricks", "/tricks"),
         ("All Charts", "/signals"), 
-        ("Thresholds", "/Admin")
+        ("Admin", "/thresholds")
         
     ]
     nav_html = " | ".join([
