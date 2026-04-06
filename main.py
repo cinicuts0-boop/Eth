@@ -9,9 +9,8 @@ import datetime
 
 app = Flask(__name__)
 
-# 🔐 பாதுகாப்புக்கு ENV use பண்ணலாம் (recommended)
-TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID")
+TOKEN = "YOUR_TOKEN"
+CHAT_ID = "YOUR_CHAT_ID"
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
@@ -25,6 +24,9 @@ trade_history = []
 telegram_messages = []
 last_signal = {}
 
+# 🔊 NEW (sound alert tracking)
+last_alert_time = ""
+
 # 🔹 TELEGRAM
 def send_telegram(msg):
     try:
@@ -35,48 +37,46 @@ def send_telegram(msg):
             "msg": msg,
             "time": datetime.datetime.now().strftime("%H:%M:%S")
         })
-
     except Exception as e:
         print("Telegram Error:", e)
-
 
 # 🔹 STATS
 def calculate_stats():
     total = len(trade_history)
-    wins = sum(1 for t in trade_history if t["result"] == "WIN ✅")
-    loss = sum(1 for t in trade_history if t["result"] == "LOSS ❌")
-
+    wins = sum(1 for t in trade_history if "WIN" in t["result"])
+    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
     pnl = (wins * 10) - (loss * 10)
     accuracy = (wins / total * 100) if total > 0 else 0
-
     return total, wins, loss, pnl, round(accuracy, 2)
 
-
-# 🔹 SIGNAL ENGINE
+# 🔹 SIGNAL
 def get_signal_for(symbol, name):
+    global latest_data, trade_history, last_signal, last_alert_time
+
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
 
         if df is None or df.empty:
             return
 
-        close = df['Close'].dropna()
+        close = df['Close']
+        if len(close.shape) > 1:
+            close = close.squeeze()
 
+        close = close.dropna()
         if len(close) < 30:
             return
 
-        rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
-        macd = ta.trend.MACD(close)
+        rsi_series = ta.momentum.RSIIndicator(close).rsi()
+        macd_obj = ta.trend.MACD(close)
 
-        macd_val = macd.macd().iloc[-1]
-        macd_sig = macd.macd_signal().iloc[-1]
-
-        # 🔥 safety check
-        if any(map(lambda x: x is None or str(x) == "nan", [rsi, macd_val, macd_sig])):
+        if rsi_series.isna().iloc[-1]:
             return
 
+        rsi_val = float(rsi_series.iloc[-1])
+        macd_val = float(macd_obj.macd().iloc[-1])
+        macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
-        rsi_val = float(rsi)
 
         signal = "WAITING"
 
@@ -91,65 +91,60 @@ def get_signal_for(symbol, name):
             "signal": signal
         }
 
-        # ❌ Duplicate signal block
         if signal == last_signal.get(name):
             return
 
         if signal != "WAITING":
             last_signal[name] = signal
 
-            sl = price - 10 if signal == "BUY" else price + 10
-            target = price + 10 if signal == "BUY" else price - 10
+            # 🔊 update alert time
+            last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
 
-            trade = {
+            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
+            target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
+
+            trade_history.append({
                 "coin": name,
                 "type": signal,
                 "price": round(price, 2),
-                "sl": round(sl, 2),
-                "target": round(target, 2),
+                "sl": sl,
+                "target": target,
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "result": "OPEN"
-            }
+            })
 
-            trade_history.append(trade)
-
-            msg = (
-                f"🚀 {name} SIGNAL\n"
-                f"Type: {signal}\n"
-                f"Entry: {price:.2f}\n"
-                f"Target: {target:.2f}\n"
-                f"SL: {sl:.2f}"
-            )
-
+            msg = f"""
+🚀 {name} SIGNAL
+Type: {signal}
+Entry: {price:.2f}
+Target: {target}
+SL: {sl}
+"""
             send_telegram(msg)
 
     except Exception as e:
         print(name, "ERROR:", e)
 
-
-# 🔹 RESULT CHECK
+# 🔹 RESULT UPDATE
 def update_results():
     for trade in trade_history:
-        if trade["result"] != "OPEN":
-            continue
+        if trade["result"] == "OPEN":
 
-        current_price = latest_data.get(trade["coin"], {}).get("price", 0)
+            current_price = latest_data.get(trade["coin"], {}).get("price", 0)
+            if current_price == 0:
+                continue
 
-        if current_price == 0:
-            continue
+            if trade["type"] == "BUY":
+                if current_price >= trade["target"]:
+                    trade["result"] = "WIN ✅"
+                elif current_price <= trade["sl"]:
+                    trade["result"] = "LOSS ❌"
 
-        if trade["type"] == "BUY":
-            if current_price >= trade["target"]:
-                trade["result"] = "WIN ✅"
-            elif current_price <= trade["sl"]:
-                trade["result"] = "LOSS ❌"
-
-        elif trade["type"] == "SELL":
-            if current_price <= trade["target"]:
-                trade["result"] = "WIN ✅"
-            elif current_price >= trade["sl"]:
-                trade["result"] = "LOSS ❌"
-
+            elif trade["type"] == "SELL":
+                if current_price <= trade["target"]:
+                    trade["result"] = "WIN ✅"
+                elif current_price >= trade["sl"]:
+                    trade["result"] = "LOSS ❌"
 
 # 🔹 BOT LOOP
 def run_bot():
@@ -168,29 +163,46 @@ def run_bot():
             print("BOT ERROR:", e)
             time.sleep(60)
 
-
-# 🔹 COMMON HEADER
+# 🔹 GOLD HEADER
 def common_header():
     return """
     <h1>🚀 Mani Money Mindset 💸</h1>
     <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">
-        <a href="/">Home</a> |
-        <a href="/signals">Signals</a> |
-        <a href="/rules">Rules</a> |
+        <a href="/">Home</a> | 
+        <a href="/signals">Signals</a> | 
+        <a href="/rules">Rules</a> | 
         <a href="/tricks">Tricks</a>
     </div>
     """
 
+# 🔹 SIGNAL PAGE
+@app.route("/signals")
+def signals_page():
+    msgs = "".join([
+        f"<p>{m['time']} → {m['msg']}</p>"
+        for m in telegram_messages[::-1][:50]
+    ])
 
-# 🔹 HOME
+    return f"""
+    <html>
+    <style>
+    body {{background:#0f172a;color:#FFD700;text-align:center;}}
+    </style>
+    <body>
+    {common_header()}
+    <h3>📩 Signals</h3>
+    {msgs if msgs else "<p>No signals</p>"}
+    </body></html>
+    """
+
+# 🔹 HOME (UPDATED WITH SOUND)
 @app.route("/")
 def dashboard():
     cards = ""
-
     for coin, data in latest_data.items():
-        color = "#FFD700"
 
+        color = "#FFD700"
         if data["signal"] == "BUY":
             color = "#22c55e"
         elif data["signal"] == "SELL":
@@ -208,6 +220,23 @@ def dashboard():
 
     return f"""
     <html>
+    <head>
+
+    <script>
+    let lastAlert = "{last_alert_time}";
+    let prevAlert = localStorage.getItem("lastAlert");
+
+    if (lastAlert !== prevAlert && lastAlert !== "") {{
+        let audio = new Audio('/static/alert.mp3');
+        audio.play();
+        localStorage.setItem("lastAlert", lastAlert);
+    }}
+
+    setInterval(() => {{
+        location.reload();
+    }}, 60000);
+    </script>
+
     <style>
     body {{
         background:#0f172a;
@@ -222,9 +251,9 @@ def dashboard():
         border-radius:15px;
         border:1px solid #FFD700;
     }}
-    a {{color:#FFD700;text-decoration:none;}}
+    a {{text-decoration:none;color:#FFD700;}}
     </style>
-
+    </head>
     <body>
     {common_header()}
     {cards}
@@ -232,10 +261,8 @@ def dashboard():
     </html>
     """
 
-
-# 🔹 START
+# 🔹 MAIN
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
-
     PORT = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=PORT)
