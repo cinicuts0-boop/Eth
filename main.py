@@ -140,30 +140,84 @@ def common_header():
     </div>
     """
 
-# Settings Page
-@app.route("/settings", methods=["GET", "POST"])
-def settings():
-    if request.method == "POST":
-        try:
-            thresholds["RSI_BUY"] = float(request.form.get("rsi_buy", thresholds["RSI_BUY"]))
-            thresholds["RSI_SELL"] = float(request.form.get("rsi_sell", thresholds["RSI_SELL"]))
-            thresholds["MACD_DIFF"] = float(request.form.get("macd_diff", thresholds["MACD_DIFF"]))
-        except:
-            pass
-    return f"""
+# 🔹 COIN PAGE (Fixed)
+@app.route("/coin/<name>/")
+@app.route("/coin/<name>")
+def coin_page(name):
+    data = latest_data.get(name, {})
+    total, wins, loss, pnl, accuracy = calculate_stats()
+
+    # TradingView chart mapping
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
+    symbol = chart_map.get(name, "")
+
+    # Last 10 trades for this coin
+    history_html = "".join([
+        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
+
+    html = f"""
     <html>
-    <body style="background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;">
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
+        iframe {{width:100%;height:300px;border:none;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
     {common_header()}
-    <h2>⚙️ Signal Settings</h2>
-    <form method="POST">
-        <p>RSI Buy Threshold: <input type="number" step="0.1" name="rsi_buy" value="{thresholds['RSI_BUY']}"></p>
-        <p>RSI Sell Threshold: <input type="number" step="0.1" name="rsi_sell" value="{thresholds['RSI_SELL']}"></p>
-        <p>MACD Diff Threshold: <input type="number" step="0.1" name="macd_diff" value="{thresholds['MACD_DIFF']}"></p>
-        <button type="submit">Update</button>
-    </form>
+
+    <div class="box">
+        <h2>{name}</h2>
+        <p>Price: {data.get('price')}</p>
+        <p>RSI: {data.get('rsi')}</p>
+        <p>Signal: {data.get('signal')}</p>
+    </div>
+
+    <div class="box">
+        <h3>📊 Performance</h3>
+        <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
+    </div>
+
+    <div class="box">
+        <h3>📈 Chart</h3>
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+    </div>
+
+    <div class="box">
+        <h3>📜 Trade History</h3>
+        {history_html if history_html else "<p>No trades</p>"}
+    </div>
+
+    <audio id="buySound" src="/static/buy.mp3"></audio>
+    <audio id="sellSound" src="/static/sell.mp3"></audio>
+    <script>
+        let lastAlert = "{last_alert_time}";
+        let lastType = "{last_alert_type}";
+        let prevAlert = localStorage.getItem("lastAlert");
+        if(lastAlert !== prevAlert && lastAlert !== "") {{
+            if(lastType==="BUY") document.getElementById("buySound").play();
+            else if(lastType==="SELL") document.getElementById("sellSound").play();
+            localStorage.setItem("lastAlert", lastAlert);
+        }}
+        setInterval(()=>{{ location.reload(); }},60000);
+    </script>
+
     </body>
     </html>
     """
+    return html
 
 # Start Bot & Flask
 if __name__ == "__main__":
