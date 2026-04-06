@@ -6,10 +6,11 @@ import os
 from flask import Flask, send_from_directory, request
 import threading
 import datetime
-import pytz  # For India timezone
+import pytz
 
 app = Flask(__name__)
 
+# ===== Telegram =====
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("CHAT_ID", "8007854479")
 
@@ -39,10 +40,6 @@ def send_telegram(msg):
     except Exception as e:
         print("Telegram Error:", e)
 
-# ===== India Time =====
-def india_time():
-    return datetime.datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%H:%M:%S")
-
 # ===== Common Header =====
 def common_header(active=None):
     nav_items = [
@@ -50,7 +47,7 @@ def common_header(active=None):
         ("Alerts", "/alerts"),
         ("Rules", "/rules"),
         ("Tricks", "/tricks"),
-        ("All Charts", "/signals"), 
+        ("All Charts", "/signals"),
         ("Admin", "/thresholds")
     ]
     nav_html = " | ".join([
@@ -63,16 +60,14 @@ def common_header(active=None):
     <div class="nav">{nav_html}</div>
     """
 
-# ===== Bot Signal Calculation =====
+# ===== Bot Signal =====
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
-        if df is None or df.empty:
-            return
+        if df.empty: return
         close = df['Close'].squeeze().dropna()
-        if len(close) < 30:
-            return
+        if len(close) < 30: return
 
         rsi_val = float(ta.momentum.RSIIndicator(close).rsi().iloc[-1])
         macd_obj = ta.trend.MACD(close)
@@ -92,93 +87,99 @@ def get_signal_for(symbol, name):
 
         if signal != "WAITING" and signal != last_signal.get(name):
             last_signal[name] = signal
-            last_alert_time = india_time()
+            ist = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+            last_alert_time = ist.strftime("%H:%M:%S")
             last_alert_type = signal
 
-            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
-            target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
-
+            sl = round(price - 10, 2) if signal=="BUY" else round(price + 10,2)
+            target = round(price + 10, 2) if signal=="BUY" else round(price - 10,2)
             trade_history.append({
-                "coin": name, "type": signal, "price": round(price, 2),
+                "coin": name, "type": signal, "price": round(price,2),
                 "sl": sl, "target": target, "time": last_alert_time, "result": "OPEN"
             })
-
             msg = f"🚀 {name} SIGNAL\nType: {signal}\nEntry: {price:.2f}\nTarget: {target}\nSL: {sl}"
             send_telegram(msg)
     except Exception as e:
         print(name, "ERROR:", e)
 
-# ===== Update Trade Results =====
+# ===== Update Results =====
 def update_results():
     for trade in trade_history:
-        if trade["result"] != "OPEN":
-            continue
+        if trade["result"] != "OPEN": continue
         current_price = latest_data.get(trade["coin"], {}).get("price", 0)
-        if current_price == 0:
-            continue
-        if trade["type"] == "BUY":
-            if current_price >= trade["target"]:
-                trade["result"] = "WIN ✅"
-            elif current_price <= trade["sl"]:
-                trade["result"] = "LOSS ❌"
-        elif trade["type"] == "SELL":
-            if current_price <= trade["target"]:
-                trade["result"] = "WIN ✅"
-            elif current_price >= trade["sl"]:
-                trade["result"] = "LOSS ❌"
+        if current_price==0: continue
+        if trade["type"]=="BUY":
+            if current_price >= trade["target"]: trade["result"]="WIN ✅"
+            elif current_price <= trade["sl"]: trade["result"]="LOSS ❌"
+        elif trade["type"]=="SELL":
+            if current_price <= trade["target"]: trade["result"]="WIN ✅"
+            elif current_price >= trade["sl"]: trade["result"]="LOSS ❌"
 
 # ===== Stats =====
 def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
     loss = sum(1 for t in trade_history if "LOSS" in t["result"])
-    pnl = (wins * 10) - (loss * 10)
-    accuracy = (wins / total * 100) if total > 0 else 0
-    return total, wins, loss, pnl, round(accuracy, 2)
+    pnl = (wins*10) - (loss*10)
+    accuracy = (wins/total*100) if total>0 else 0
+    return total, wins, loss, pnl, round(accuracy,2)
 
 # ===== Bot Loop =====
 def run_bot():
     while True:
         try:
-            get_signal_for("ETH-USD", "ETH")
-            get_signal_for("BTC-USD", "BTC")
-            get_signal_for("^NSEI", "NIFTY")
-            get_signal_for("^NSEBANK", "BANKNIFTY")
-            get_signal_for("CL=F", "CRUDE")
+            get_signal_for("ETH-USD","ETH")
+            get_signal_for("BTC-USD","BTC")
+            get_signal_for("^NSEI","NIFTY")
+            get_signal_for("^NSEBANK","BANKNIFTY")
+            get_signal_for("CL=F","CRUDE")
             update_results()
             time.sleep(300)
         except Exception as e:
-            print("BOT ERROR:", e)
+            print("BOT ERROR:",e)
             time.sleep(60)
 
-# ===== Blink Script =====
-def blink_script():
+# ===== Pages =====
+
+@app.route("/", methods=["GET","POST"])
+def home():
+    global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
+    if request.method=="POST":
+        try:
+            rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
+            rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
+            macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
+        except: pass
+
+    cards=""
+    for coin, data in latest_data.items():
+        color="#FFD700"
+        if data["signal"]=="BUY": color="#22c55e"
+        elif data["signal"]=="SELL": color="#ef4444"
+        cards+=f"""
+        <div class="box">
+            <h3>{coin}</h3>
+            <p>Price: {data['price']}</p>
+            <p style="color:{color}">Signal: {data['signal']}</p>
+            <a href="/coin/{coin}">View Details</a>
+        </div>
+        """
     return f"""
-    <script>
-    let lastAlert = "{last_alert_time}";
-    let lastType = "{last_alert_type}";
-    let prevAlert = localStorage.getItem("lastAlert");
-    if(lastAlert !== prevAlert && lastAlert !== "") {{
-        localStorage.setItem("lastAlert", lastAlert);
-        let boxes = document.querySelectorAll(".box");
-        if(boxes.length>0){{
-            let box = boxes[0];
-            if(lastType==="BUY"){{box.classList.add("blink-buy");document.getElementById("buySound").play();}}
-            if(lastType==="SELL"){{box.classList.add("blink-sell");document.getElementById("sellSound").play();}}
-            setTimeout(()=>{{box.classList.remove("blink-buy","blink-sell");}},1000);
-        }}
-    }}
-    setInterval(()=>{{location.reload();}},60000);
-    </script>
+    <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+    body{{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;margin:0;padding:0;}}
+    .container{{display:flex;flex-wrap:wrap;justify-content:center;}}
+    .box{{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;min-width:200px;flex:1 1 200px;}}
+    a{{color:#FFD700;text-decoration:none;}}
+    </style></head>
+    <body>
+    {common_header(active="Home")}
+    <div class="container">{cards}</div>
+    </body></html>
     """
 
-# ===== Flask Pages =====
-
-# Home, Alerts, Rules, Tricks, Thresholds, Signals, Coin pages
-# (Integrate blink, India time, sound for alerts, as in previous code)
-
-# === Start Bot & Flask ===
-if __name__ == "__main__":
+# ===== Start Bot & Flask =====
+if __name__=="__main__":
     threading.Thread(target=run_bot, daemon=True).start()
-    PORT = int(os.environ.get("PORT", 8080))
+    PORT = int(os.environ.get("PORT",8080))
     app.run(host="0.0.0.0", port=PORT)
