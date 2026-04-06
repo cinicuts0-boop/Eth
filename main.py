@@ -151,9 +151,9 @@ def tricks_page():
 def alerts_page():
     history_html = "".join([
         f"<p>{t['time']} | {t['coin']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history[-20:]  # last 20 alerts
+        for t in trade_history[-20:]
     ])
-    html = f"""
+    return f"""
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -164,8 +164,9 @@ def alerts_page():
         </style>
     </head>
     <body>
-        <h1>📢 Live Alerts</h1>
+        {common_header()}
         <div class="box">
+            <h2>📢 Live Alerts</h2>
             {history_html if history_html else "<p>No alerts yet</p>"}
         </div>
         <audio id="buySound" src="/static/buy.mp3"></audio>
