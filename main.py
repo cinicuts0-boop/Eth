@@ -1,3 +1,4 @@
+
 import requests
 import time
 import yfinance as yf
@@ -9,6 +10,7 @@ import datetime
 import pytz  # India timezone
 
 app = Flask(__name__)
+
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("CHAT_ID", "8007854479")
 
@@ -58,7 +60,6 @@ def get_signal_for(symbol, name):
         macd_val = float(macd_obj.macd().iloc[-1])
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
-
         macd_diff = macd_val - macd_sig
 
         if rsi_val < rsi_buy_threshold and macd_diff > macd_diff_threshold:
@@ -136,11 +137,31 @@ def common_header(active=""):
         {html}
     """
 
+# ===== Generic Blink Script =====
+def blink_script():
+    return """
+    <script>
+    let lastAlert = "{last_alert_time}";
+    let lastType = "{last_alert_type}";
+    let prevAlert = localStorage.getItem("lastAlert");
+    if(lastAlert !== prevAlert && lastAlert !== "") {
+        localStorage.setItem("lastAlert", lastAlert);
+        let boxes = document.querySelectorAll(".box");
+        if(boxes.length>0){
+            let box = boxes[0];
+            if(lastType==="BUY"){box.classList.add("blink-buy");document.getElementById("buySound").play();}
+            if(lastType==="SELL"){box.classList.add("blink-sell");document.getElementById("sellSound").play();}
+            setTimeout(()=>{box.classList.remove("blink-buy","blink-sell");},1000);
+        }
+    }
+    setInterval(()=>{location.reload();},60000);
+    </script>
+    """
+
 # ===== Home Page =====
 @app.route("/", methods=["GET", "POST"])
 def home():
     global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
-
     if request.method == "POST":
         try:
             rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
@@ -166,8 +187,8 @@ def home():
     return f"""
     <html>
     <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
         body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;margin:0;padding:0;}}
         .container {{display:flex;flex-wrap:wrap;justify-content:center;}}
         .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;min-width:200px;flex:1 1 200px;}}
@@ -178,7 +199,7 @@ def home():
         .blink-sell {{animation: blink-sell 1s ease;}}
         @keyframes blink {{0% {{background-color:#1e293b}} 50% {{background-color:#22c55e}} 100% {{background-color:#1e293b}}}}
         @keyframes blink-sell {{0% {{background-color:#1e293b}} 50% {{background-color:#ef4444}} 100% {{background-color:#1e293b}}}}
-    </style>
+        </style>
     </head>
     <body>
         {common_header(active="Home")}
@@ -187,22 +208,7 @@ def home():
         </div>
         <audio id="buySound" src="/static/buy.mp3"></audio>
         <audio id="sellSound" src="/static/sell.mp3"></audio>
-        <script>
-            let lastAlert = "{last_alert_time}";
-            let lastType = "{last_alert_type}";
-            let prevAlert = localStorage.getItem("lastAlert");
-            if(lastAlert !== prevAlert && lastAlert !== "") {{
-                localStorage.setItem("lastAlert", lastAlert);
-                let boxes = document.querySelectorAll(".box");
-                if(boxes.length>0){{
-                    let box = boxes[0];
-                    if(lastType==="BUY"){{box.classList.add("blink-buy");document.getElementById("buySound").play();}}
-                    if(lastType==="SELL"){{box.classList.add("blink-sell");document.getElementById("sellSound").play();}}
-                    setTimeout(()=>{{box.classList.remove("blink-buy","blink-sell");}},1000);
-                }}
-            }}
-            setInterval(()=>{{location.reload();}},60000);
-        </script>
+        {blink_script()}
     </body>
     </html>
     """
@@ -234,21 +240,7 @@ def alerts_page():
         {history_html if history_html else "<p>No alerts yet</p>"}
         <audio id="buySound" src="/static/buy.mp3"></audio>
         <audio id="sellSound" src="/static/sell.mp3"></audio>
-        <script>
-            let lastAlert = "{last_alert_time}";
-            let lastType = "{last_alert_type}";
-            let prevAlert = localStorage.getItem("lastAlert");
-            if(lastAlert !== prevAlert && lastAlert !== "") {{
-                localStorage.setItem("lastAlert", lastAlert);
-                let boxes = document.querySelectorAll(".box");
-                if(boxes.length>0){{
-                    let box = boxes[0];
-                    if(lastType==="BUY"){{box.classList.add("blink-buy");document.getElementById("buySound").play();}}
-                    if(lastType==="SELL"){{box.classList.add("blink-sell");document.getElementById("sellSound").play();}}
-                    setTimeout(()=>{{box.classList.remove("blink-buy","blink-sell");}},1000);
-                }}
-            }}
-        </script>
+        {blink_script()}
     </body>
     </html>
     """
