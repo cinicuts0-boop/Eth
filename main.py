@@ -64,44 +64,83 @@ def common_header(active=None):
 # ===== Bot Signal Calculation =====
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
+
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
+
         if df is None or df.empty:
             return
-        close = df['Close'].dropna()
+
+        # 🔥 FIX HERE
+        close = df['Close'].squeeze().dropna()
+
         if len(close) < 30:
             return
 
-        rsi_val = float(ta.momentum.RSIIndicator(close).rsi().iloc[-1])
+        rsi_val = float(
+            ta.momentum.RSIIndicator(close).rsi().iloc[-1]
+        )
+
         macd_obj = ta.trend.MACD(close)
-        macd_val = float(macd_obj.macd().iloc[-1])
-        macd_sig = float(macd_obj.macd_signal().iloc[-1])
+
+        macd_val = float(
+            macd_obj.macd().iloc[-1]
+        )
+
+        macd_sig = float(
+            macd_obj.macd_signal().iloc[-1]
+        )
+
         price = float(close.iloc[-1])
+
         macd_diff = macd_val - macd_sig
 
         if rsi_val < rsi_buy_threshold and macd_diff > macd_diff_threshold:
             signal = "BUY"
+
         elif rsi_val > rsi_sell_threshold and macd_diff < -macd_diff_threshold:
             signal = "SELL"
+
         else:
             signal = "WAITING"
 
-        latest_data[name] = {"price": round(price,2), "rsi": round(rsi_val,2), "signal": signal}
+        latest_data[name] = {
+            "price": round(price, 2),
+            "rsi": round(rsi_val, 2),
+            "signal": signal
+        }
 
         if signal != "WAITING" and signal != last_signal.get(name):
+
             last_signal[name] = signal
-            last_alert_time[name] = india_time().strftime("%H:%M:%S")
+
+            ist_time = india_time().strftime("%H:%M:%S")
+
+            last_alert_time[name] = ist_time
             last_alert_type[name] = signal
 
-            sl = round(price - 10,2) if signal=="BUY" else round(price+10,2)
-            target = round(price +10,2) if signal=="BUY" else round(price-10,2)
+            sl = round(price - 10, 2) if signal == "BUY" else round(price + 10, 2)
+
+            target = round(price + 10, 2) if signal == "BUY" else round(price - 10, 2)
 
             trade_history.append({
-                "coin": name, "type": signal, "price": round(price,2),
-                "sl": sl, "target": target, "time": last_alert_time[name], "result": "OPEN"
+                "coin": name,
+                "type": signal,
+                "price": round(price, 2),
+                "sl": sl,
+                "target": target,
+                "time": ist_time,
+                "result": "OPEN"
             })
 
-            msg = f"🚀 {name} SIGNAL\nType: {signal}\nEntry: {price:.2f}\nTarget: {target}\nSL: {sl}"
+            msg = f"""
+🚀 {name} SIGNAL
+Type: {signal}
+Entry: {price:.2f}
+Target: {target}
+SL: {sl}
+"""
+
             send_telegram(msg)
 
     except Exception as e:
