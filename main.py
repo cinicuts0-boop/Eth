@@ -207,7 +207,19 @@ def coin_page(name):
     <body>{common_header()}
     <div class='box'><h2>{name}</h2><p>Price:{data.get('price')}</p><p>RSI:{data.get('rsi')}</p><p>Signal:{data.get('signal')}</p></div>
     <div class='box'><h3>Trade History</h3>{history_html if history_html else "<p>No trades</p>"}</div>
-    <a href='/'>⬅ Back</a></body></html>
+    <a href='/'>⬅ Back</a>
+<script>
+    let lastAlert = "{last_alert_time}";
+    let lastType = "{last_alert_type}";
+    let prevAlert = localStorage.getItem("lastAlert");
+
+    if(lastAlert !== prevAlert && lastAlert !== ""){{
+        if(lastType === "BUY"){{ document.getElementById("buySound").play(); }}
+        else if(lastType === "SELL"){{ document.getElementById("sellSound").play(); }}
+        localStorage.setItem("lastAlert", lastAlert);
+    }}
+    setInterval(()=>{{ location.reload(); }}, 60000);
+</script></body></html>
     """
 
 # Static files
