@@ -50,6 +50,7 @@ def common_header(active=None):
         ("Tricks", "/tricks"),
         ("All Charts", "/signals"),
         ("Stats", "/stats"),
+        ("Daily PnL", "/daily_pnl")
         ("Admin", "/thresholds")
     ]
     nav_html = " | ".join([
@@ -279,6 +280,108 @@ def run_bot():
 @app.route('/static/<path:path>')
 def send_static(path):
     return send_from_directory('static', path)
+
+# ===== Daily PnL Data =====
+def get_daily_pnl():
+    daily = {}
+
+    for t in trade_history:
+        if "WIN" in t["result"]:
+            date = t["time"].split(" ")[0] if " " in t["time"] else t["time"]
+            daily[date] = daily.get(date, 0) + 10
+
+        elif "LOSS" in t["result"]:
+            date = t["time"].split(" ")[0] if " " in t["time"] else t["time"]
+            daily[date] = daily.get(date, 0) - 10
+
+    labels = list(daily.keys())
+    values = list(daily.values())
+
+    return labels, values
+
+# ===== Daily PnL Graph Page =====
+@app.route("/daily_pnl")
+def daily_pnl_page():
+
+    labels, values = get_daily_pnl()
+
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+    body {{
+        background:#0f172a;
+        color:#FFD700;
+        font-family:Arial;
+        text-align:center;
+    }}
+
+    .box {{
+        background:#1e293b;
+        padding:20px;
+        margin:20px;
+        border-radius:15px;
+        border:1px solid #FFD700;
+    }}
+
+    canvas {{
+        background:white;
+        border-radius:10px;
+        padding:10px;
+    }}
+
+    </style>
+
+    </head>
+
+    <body>
+
+    {common_header(active="DailyPnL")}
+
+    <div class="box">
+        <h2>📊 Daily PnL Graph</h2>
+
+        <canvas id="pnlChart"></canvas>
+
+    </div>
+
+    <script>
+
+    const ctx = document.getElementById('pnlChart');
+
+    new Chart(ctx, {{
+
+        type: 'bar',
+
+        data: {{
+
+            labels: {labels},
+
+            datasets: [{{
+                label: 'Daily PnL',
+                data: {values}
+            }}]
+
+        }},
+
+        options: {{
+
+            responsive: true
+
+        }}
+
+    }});
+
+    </script>
+
+    </body>
+
+    </html>
+    """
 
 # ===== Home Page =====
 @app.route("/")
