@@ -188,29 +188,46 @@ def home():
 def send_static(path):
     return send_from_directory('static', path)
 
-# Coin Page with overlay
+# 🔹 Coin Page with Overlay Signals
 @app.route("/coin/<name>")
 def coin_page(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
-    chart_map = {"ETH":"BINANCE:ETHUSDT","BTC":"BINANCE:BTCUSDT","NIFTY":"NSE:NIFTY",
-                 "BANKNIFTY":"NSE:BANKNIFTY","CRUDE":"NYMEX:CL1!"}
+
+    chart_map = {
+        "ETH": "BINANCE:ETHUSDT",
+        "BTC": "BINANCE:BTCUSDT",
+        "NIFTY": "NSE:NIFTY",
+        "BANKNIFTY": "NSE:BANKNIFTY",
+        "CRUDE": "NYMEX:CL1!"
+    }
     symbol = chart_map.get(name,"")
-    signals_overlay = [{"time":t["time"],"type":t["type"],"price":t["price"]}
-                       for t in trade_history if t["coin"]==name][-10:]
-    history_html = "".join([f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-                            for t in trade_history if t["coin"]==name][-10:])
+
+    # Last 10 trades for this coin
+    signals_overlay = [
+        {"time": t["time"], "type": t["type"], "price": t["price"]}
+        for t in trade_history if t["coin"] == name
+    ][-10:]
+
+    history_html = "".join([
+        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
+
+    # Convert signals_overlay to JSON for JS
+    signals_json = json.dumps(signals_overlay)
+
     html = f"""
     <html>
     <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="60">
-    <style>
-        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
-        .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
-        iframe {{width:100%;height:300px;border:none;}}
-        a {{color:#FFD700;text-decoration:none;}}
-    </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="refresh" content="60">
+        <style>
+            body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+            .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
+            iframe {{width:100%;height:300px;border:none;}}
+            a {{color:#FFD700;text-decoration:none;}}
+        </style>
     </head>
     <body>
     {common_header()}
@@ -220,29 +237,42 @@ def coin_page(name):
         <p>RSI: {data.get('rsi')}</p>
         <p>Signal: {data.get('signal')}</p>
     </div>
+
     <div class="box">
         <h3>📊 Performance</h3>
         <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
     </div>
+
     <div class="box">
         <h3>📈 Chart with Signals</h3>
         <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
     </div>
+
     <div class="box">
         <h3>📜 Trade History</h3>
         {history_html if history_html else "<p>No trades</p>"}
     </div>
+
     <audio id="buySound" src="/static/buy.mp3"></audio>
     <audio id="sellSound" src="/static/sell.mp3"></audio>
+
     <script>
+        const signals = {signals_json};
+        console.log("Overlay signals:", signals);
+
         let lastAlert = "{last_alert_time}";
         let lastType = "{last_alert_type}";
         let prevAlert = localStorage.getItem("lastAlert");
-        if(lastAlert !== prevAlert && lastAlert !== ""){{
+
+        if(lastAlert !== prevAlert && lastAlert !== ""){
             if(lastType==="BUY") document.getElementById("buySound").play();
             else if(lastType==="SELL") document.getElementById("sellSound").play();
             localStorage.setItem("lastAlert", lastAlert);
-        }}
+        }
+
+        // Future: Overlay arrows on TradingView chart using signals array
+        // Currently, we console.log() signals. Later, we can use TradingView JS API to plot buy/sell arrows.
+
         setInterval(()=>{{ location.reload(); }},60000);
     </script>
     </body>
