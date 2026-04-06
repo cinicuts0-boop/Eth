@@ -230,43 +230,38 @@ def get_signal_for(symbol, name):
         print(name, "ERROR:", e)
 
 # ===== Thresholds Page =====
-@app.route("/thresholds", methods=["GET", "POST"])
-def thresholds_page():
+@app.route("/thresholds", methods=["GET","POST"])
+def thresholds():
     global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
-    from flask import request
-
-    # Update thresholds if form submitted
     if request.method == "POST":
         try:
             rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
             rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
             macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
         except:
-            pass  # ignore invalid input
-
+            pass
     return f"""
     <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
-            .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
-            input {{width:60px;text-align:center;}}
-            button {{padding:5px 10px;margin-left:10px;}}
-            a {{color:#FFD700;text-decoration:none;}}
-        </style>
+    <style>
+    body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+    .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+    .nav {{margin:20px 0;}}
+    input {{width:60px;text-align:center;}}
+    button {{padding:5px 10px; margin-left:10px;}}
+    </style>
     </head>
     <body>
-        {common_header(rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold)}
-        <div class="box">
-            <h3>⚙️ Adjust Thresholds</h3>
-            <form method="POST">
-                RSI Buy: <input name="rsi_buy" value="{rsi_buy_threshold}"/>
-                RSI Sell: <input name="rsi_sell" value="{rsi_sell_threshold}"/>
-                MACD Diff: <input name="macd_diff" value="{macd_diff_threshold}"/>
-                <button type="submit">Update</button>
-            </form>
-        </div>
+    {nav_bar(active="Thresholds")}
+    <div class="box">
+        <h3>⚙️ Adjust Thresholds</h3>
+        <form method="POST">
+            RSI Buy: <input name="rsi_buy" value="{rsi_buy_threshold}"/>
+            RSI Sell: <input name="rsi_sell" value="{rsi_sell_threshold}"/>
+            MACD Diff: <input name="macd_diff" value="{macd_diff_threshold}"/>
+            <button type="submit">Update</button>
+        </form>
+    </div>
     </body>
     </html>
     """
