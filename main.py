@@ -57,16 +57,12 @@ def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
 
     try:
+        # 🔹 5-min data
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
-
         if df is None or df.empty:
             return
 
-        close = df['Close']
-        if len(close.shape) > 1:
-            close = close.squeeze()
-
-        close = close.dropna()
+        close = df['Close'].squeeze().dropna()
         if len(close) < 30:
             return
 
@@ -79,14 +75,13 @@ def get_signal_for(symbol, name):
         rsi_val = float(rsi_series.iloc[-1])
         macd_val = float(macd_obj.macd().iloc[-1])
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
+        macd_diff = macd_val - macd_sig
         price = float(close.iloc[-1])
 
-        # 🔹 Step 1 + Step 2: RSI thresholds + MACD difference
-        rsi_buy = 35          # Buy signal lower threshold
-        rsi_sell = 65         # Sell signal higher threshold
-        macd_diff_threshold = 0.5  # Minimum MACD difference to trigger signal
-
-        macd_diff = macd_val - macd_sig
+        # 🔹 Step 1 + Step 2: Thresholds + MACD diff
+        rsi_buy = 35
+        rsi_sell = 65
+        macd_diff_threshold = 0.5
 
         if rsi_val < rsi_buy and macd_diff > macd_diff_threshold:
             signal = "BUY"
@@ -94,6 +89,21 @@ def get_signal_for(symbol, name):
             signal = "SELL"
         else:
             signal = "WAITING"
+
+        # 🔹 Step 3: Multi-Timeframe Check (15-min)
+        df_15 = yf.download(symbol, period="1d", interval="15m", progress=False)
+        if df_15 is not None and not df_15.empty:
+            close_15 = df_15['Close'].dropna()
+            if len(close_15) >= 30:
+                rsi_15 = float(ta.momentum.RSIIndicator(close_15).rsi().iloc[-1])
+                macd_15 = float(ta.trend.MACD(close_15).macd().iloc[-1])
+                macd_sig_15 = float(ta.trend.MACD(close_15).macd_signal().iloc[-1])
+                macd_diff_15 = macd_15 - macd_sig_15
+
+                if signal == "BUY" and not (rsi_15 < rsi_buy and macd_diff_15 > macd_diff_threshold):
+                    signal = "WAITING"
+                elif signal == "SELL" and not (rsi_15 > rsi_sell and macd_diff_15 < -macd_diff_threshold):
+                    signal = "WAITING"
 
         # 🔹 Update latest_data
         latest_data[name] = {
