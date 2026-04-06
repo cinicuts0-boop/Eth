@@ -37,6 +37,115 @@ def send_telegram(msg):
     except Exception as e:
         print("Telegram Error:", e)
 
+# ===== Signals Page =====
+@app.route("/signals")
+def signals_page():
+    cards = ""
+    for coin, data in latest_data.items():
+        color = "#FFD700"
+        if data["signal"] == "BUY": color = "#22c55e"
+        elif data["signal"] == "SELL": color = "#ef4444"
+        cards += f"""
+        <div class="box">
+            <h3>{coin}</h3>
+            <p>Price: {data['price']}</p>
+            <p style="color:{color}">Signal: {data['signal']}</p>
+            <iframe src="https://s.tradingview.com/widgetembed/?symbol={
+                {'ETH':'BINANCE:ETHUSDT','BTC':'BINANCE:BTCUSDT','NIFTY':'NSE:NIFTY',
+                 'BANKNIFTY':'NSE:BANKNIFTY','CRUDE':'NYMEX:CL1!'}[coin]
+            }&interval=5&theme=dark"></iframe>
+        </div>
+        """
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        .box {{background:#1e293b;padding:15px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+        iframe {{width:100%;height:300px;border:none;margin-top:10px;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+    {common_header()}
+    <h2>📈 Live Signals</h2>
+    {cards}
+    <audio id="buySound" src="/static/buy.mp3"></audio>
+    <audio id="sellSound" src="/static/sell.mp3"></audio>
+    <script>
+        let lastAlert = "{last_alert_time}";
+        let lastType = "{last_alert_type}";
+        let prevAlert = localStorage.getItem("lastAlert");
+        if(lastAlert !== prevAlert && lastAlert !== "") {{
+            if(lastType === "BUY") {{ document.getElementById("buySound").play(); }}
+            else if(lastType === "SELL") {{ document.getElementById("sellSound").play(); }}
+            localStorage.setItem("lastAlert", lastAlert);
+        }}
+        setInterval(()=>{{ location.reload(); }},60000);
+    </script>
+    </body>
+    </html>
+    """
+
+# ===== Rules Page =====
+@app.route("/rules")
+def rules_page():
+    rules_html = """
+    <ul style="text-align:left; max-width:600px; margin:auto;">
+        <li>✅ Always set stop-loss before entering a trade.</li>
+        <li>✅ Do not risk more than 2% of capital per trade.</li>
+        <li>✅ Follow RSI & MACD signals for entry/exit.</li>
+        <li>✅ Avoid trading during high volatility news.</li>
+        <li>✅ Keep a trade journal to track performance.</li>
+    </ul>
+    """
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+    {common_header()}
+    <h2>📜 Trading Rules</h2>
+    {rules_html}
+    </body>
+    </html>
+    """
+
+# ===== Tricks Page =====
+@app.route("/tricks")
+def tricks_page():
+    tricks_html = """
+    <ul style="text-align:left; max-width:600px; margin:auto;">
+        <li>💡 Use multiple timeframes for confirmation.</li>
+        <li>💡 Avoid overtrading; wait for high-probability setups.</li>
+        <li>💡 Take partial profits to lock gains.</li>
+        <li>💡 Monitor correlation between assets.</li>
+        <li>💡 Review losing trades to improve strategy.</li>
+    </ul>
+    """
+    return f"""
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        a {{color:#FFD700;text-decoration:none;}}
+    </style>
+    </head>
+    <body>
+    {common_header()}
+    <h2>💡 Trading Tricks</h2>
+    {tricks_html}
+    </body>
+    </html>
+    """
+
 # ===== Signal Calculation =====
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
