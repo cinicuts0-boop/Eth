@@ -1,4 +1,3 @@
-
 import requests
 import time
 import yfinance as yf
@@ -55,12 +54,8 @@ def get_signal_for(symbol, name):
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         price = float(close.iloc[-1])
 
-        rsi_buy = 35
-        rsi_sell = 65
-        macd_diff_threshold = 0.5
         macd_diff = macd_val - macd_sig
 
-                # Use user-set thresholds
         if rsi_val < rsi_buy_threshold and macd_diff > macd_diff_threshold:
             signal = "BUY"
         elif rsi_val > rsi_sell_threshold and macd_diff < -macd_diff_threshold:
@@ -70,10 +65,7 @@ def get_signal_for(symbol, name):
 
         latest_data[name] = {"price": round(price, 2), "rsi": round(rsi_val, 2), "signal": signal}
 
-        if signal == last_signal.get(name):
-            return
-
-        if signal != "WAITING":
+        if signal != "WAITING" and signal != last_signal.get(name):
             last_signal[name] = signal
             last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
             last_alert_type = signal
@@ -147,17 +139,15 @@ def common_header():
 @app.route("/", methods=["GET", "POST"])
 def home():
     global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
-
     from flask import request
 
-    # Update thresholds if form submitted
     if request.method == "POST":
         try:
             rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
             rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
             macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
         except:
-            pass  # ignore invalid input
+            pass
 
     cards = ""
     for coin, data in latest_data.items():
@@ -168,20 +158,24 @@ def home():
         <div class="box">
             <h3>{coin}</h3>
             <p>Price: {data['price']}</p>
-            <p style="color:{color}">Signal: {data['signal']}</p>
-            <a href="/coin/{coin}">View Details</a>
+            <p style=\"color:{color}\">Signal: {data['signal']}</p>
+            <a href=\"/coin/{coin}\">View Details</a>
         </div>
         """
 
     return f"""
     <html>
     <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
-        .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;margin:0;padding:0;}}
+        .container {{display:flex;flex-wrap:wrap;justify-content:center;}}
+        .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;min-width:200px;flex:1 1 200px;}}
         a {{color:#FFD700;text-decoration:none;}}
         input {{width:60px;text-align:center;}}
         button {{padding:5px 10px;margin-left:10px;}}
+        .highlight {{animation: highlight 1s ease;}}
+        @keyframes highlight {{0% {{background-color:#22c55e}} 100% {{background-color:#1e293b}}}}
     </style>
     </head>
     <body>
@@ -195,7 +189,9 @@ def home():
                 <button type="submit">Update</button>
             </form>
         </div>
-        {cards}
+        <div class="container">
+            {cards}
+        </div>
         <audio id="buySound" src="/static/buy.mp3"></audio>
         <audio id="sellSound" src="/static/sell.mp3"></audio>
         <script>
@@ -229,10 +225,11 @@ def coin_page(name):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="60">
     <style>
-        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
+        body {{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;margin:0;padding:0;}}
         .box {{background:#1e293b;margin:10px;padding:15px;border-radius:15px;border:1px solid #FFD700;}}
-        iframe {{width:100%;height:300px;border:none;}}
+        iframe {{width:100%;height:350px;border:none;}}
         a {{color:#FFD700;text-decoration:none;}}
+        .history {{max-height:200px;overflow-y:auto;text-align:left;}}
     </style>
     </head>
     <body>
@@ -251,7 +248,7 @@ def coin_page(name):
         <h3>📈 Chart with Signals</h3>
         <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
     </div>
-    <div class="box">
+    <div class="box history">
         <h3>📜 Trade History</h3>
         {history_html if history_html else "<p>No trades</p>"}
     </div>
