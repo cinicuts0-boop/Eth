@@ -229,6 +229,48 @@ def get_signal_for(symbol, name):
     except Exception as e:
         print(name, "ERROR:", e)
 
+# ===== Thresholds Page =====
+@app.route("/thresholds", methods=["GET", "POST"])
+def thresholds_page():
+    global rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold
+    from flask import request
+
+    # Update thresholds if form submitted
+    if request.method == "POST":
+        try:
+            rsi_buy_threshold = float(request.form.get("rsi_buy", rsi_buy_threshold))
+            rsi_sell_threshold = float(request.form.get("rsi_sell", rsi_sell_threshold))
+            macd_diff_threshold = float(request.form.get("macd_diff", macd_diff_threshold))
+        except:
+            pass  # ignore invalid input
+
+    return f"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
+            .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+            input {{width:60px;text-align:center;}}
+            button {{padding:5px 10px;margin-left:10px;}}
+            a {{color:#FFD700;text-decoration:none;}}
+        </style>
+    </head>
+    <body>
+        {common_header(rsi_buy_threshold, rsi_sell_threshold, macd_diff_threshold)}
+        <div class="box">
+            <h3>⚙️ Adjust Thresholds</h3>
+            <form method="POST">
+                RSI Buy: <input name="rsi_buy" value="{rsi_buy_threshold}"/>
+                RSI Sell: <input name="rsi_sell" value="{rsi_sell_threshold}"/>
+                MACD Diff: <input name="macd_diff" value="{macd_diff_threshold}"/>
+                <button type="submit">Update</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+
 # ===== Update Results =====
 def update_results():
     for trade in trade_history:
@@ -278,8 +320,8 @@ def common_header():
     <h1>🚀 Mani Money Mindset 💸</h1>
     <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">
-        <a href="/">Home</a> | <a href="/signals">Signals</a> | 
-        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a> | <a href="/alerts">Alerts</a>
+        <a href="/">Home</a> | <a href="/alerts">Alerts</a> | 
+        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a> | <a href="/thresholds">⚙️ Thresholds</a> | <a href="/signals">Signals</a> 
     </div>
     """
 
