@@ -6,11 +6,17 @@ import os
 from flask import Flask
 import threading
 import datetime
+import pytz
 
 app = Flask(__name__)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+
+# 🕒 IST TIME FUNCTION
+def get_ist_time():
+    ist = pytz.timezone("Asia/Kolkata")
+    return datetime.datetime.now(ist).strftime("%H:%M:%S")
 
 # 💰 ACCOUNT
 account_balance = 10000
@@ -28,14 +34,17 @@ last_signal = {}
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(url, data={
-            "chat_id": CHAT_ID,
-            "text": msg
-        })
+        requests.post(
+            url,
+            data={
+                "chat_id": CHAT_ID,
+                "text": msg
+            }
+        )
     except:
         print("Telegram Error")
 
-# 📊 STATS FUNCTION
+# 📊 STATS
 def calculate_stats():
 
     total = len(trade_history)
@@ -147,21 +156,19 @@ def get_signal(symbol,name):
                 "sl": sl,
                 "target": target,
                 "lot": round(lot_size,2),
-                "time":
-                datetime.datetime
-                .now()
-                .strftime("%H:%M:%S"),
+                "time": get_ist_time(),
                 "result":"OPEN"
             })
 
             msg=f"""
-{name} SIGNAL
+🚀 {name} SIGNAL
 
 Type: {signal}
 Entry: {price:.2f}
 Target: {target}
 SL: {sl}
 Lot: {round(lot_size,2)}
+Time: {get_ist_time()}
 """
 
             send_telegram(msg)
@@ -229,8 +236,7 @@ def run_bot():
 @app.route("/")
 def home():
 
-    total,wins,loss,
-    pnl,accuracy = calculate_stats()
+    total,wins,loss,pnl,accuracy = calculate_stats()
 
     cards=""
 
@@ -245,16 +251,16 @@ def home():
             color="#ef4444"
 
         cards+=f"""
-        <a href="/coin/{coin}">
-        <div class="box">
-        <h3>{coin}</h3>
-        <p>{data['price']}</p>
-        <p style="color:{color}">
-        {data['signal']}
-        </p>
-        </div>
-        </a>
-        """
+<a href="/coin/{coin}">
+<div class="box">
+<h3>{coin}</h3>
+<p>{data['price']}</p>
+<p style="color:{color}">
+{data['signal']}
+</p>
+</div>
+</a>
+"""
 
     return f"""
 <html>
@@ -301,6 +307,7 @@ color:#FFD700;
 <p>Loss: {loss}</p>
 <p>Accuracy: {accuracy}%</p>
 <p>Total PnL: {pnl}</p>
+<p>Time (IST): {get_ist_time()}</p>
 </div>
 
 {cards}
@@ -371,3 +378,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8080
     )
+    \
