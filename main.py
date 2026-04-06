@@ -6,10 +6,16 @@ import os
 from flask import Flask, send_from_directory, request
 import threading
 from datetime import datetime, timedelta
+import pytz
 
 app = Flask(__name__)
+
+# ===== Telegram =====
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("CHAT_ID", "8007854479")
+
+# ===== India Time =====
+IST = pytz.timezone("Asia/Kolkata")
 
 # ===== Global Variables =====
 latest_data = {
@@ -23,6 +29,7 @@ trade_history = []
 last_signal = {}
 last_alert_time = {}
 last_alert_type = {}
+last_alert_coin = ""
 
 # ===== Global Thresholds =====
 rsi_buy_threshold = 35
@@ -62,10 +69,32 @@ def common_header(active=None):
     <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">{nav_html}</div>
     """
+# ===== Footer =====
+def common_footer(active=None):
 
+    nav_items = [
+        ("Home", "/"),
+        ("Alerts", "/alerts"),
+        ("Rules", "/rules"),
+        ("Tricks", "/tricks"),
+        ("Charts", "/signals"),
+        ("Admin", "/thresholds")
+    ]
+
+    nav_html = " | ".join([
+        f'<a href="{url}" style="color:{"#3b82f6" if name==active else "#FFD700"}">{name}</a>'
+        for name, url in nav_items
+    ])
+
+    return f"""
+    <div class="footer">
+        {nav_html}
+    </div>
+    """
+    
 # ===== Bot Signal Calculation =====
 def get_signal_for(symbol, name):
-    global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
+    global latest_data, trade_history, last_signal, last_alert_time, last_alert_coin, last_alert_type
 
     try:
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
@@ -407,12 +436,21 @@ def home():
         body{{background:#0f172a;color:#FFD700;font-family:Arial;text-align:center;}}
         .container{{display:flex;flex-wrap:wrap;justify-content:center;}}
         .box{{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;min-width:200px;flex:1 1 200px;}}
+        .footer {{
+position: fixed;
+bottom: 0;
+width: 100%;
+background:#020617;
+padding:10px;
+border-top:1px solid #FFD700;
+}}
         a{{color:#FFD700;text-decoration:none;}}
     </style>
     </head>
     <body>
         {common_header(active="Home")}
         <div class="container">{cards}</div>
+        {common_footer("Home")}
     </body>
     </html>
     """
