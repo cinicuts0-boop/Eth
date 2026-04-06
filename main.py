@@ -56,26 +56,26 @@ def get_signal_for(symbol, name):
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
         if df is None or df.empty:
             return
-        close = df['Close'].squeeze().dropna()
+        close = df['Close'].dropna()
+        if len(close.shape) > 1:
+            close = close.iloc[:, 0]
+        close = close.values.flatten()
         if len(close) < 30:
             return
 
-        rsi_series = ta.momentum.RSIIndicator(close).rsi()
+        rsi_val = float(ta.momentum.RSIIndicator(close).rsi().iloc[-1])
         macd_obj = ta.trend.MACD(close)
-        if rsi_series.isna().iloc[-1]:
-            return
-
-        rsi_val = float(rsi_series.iloc[-1])
         macd_val = float(macd_obj.macd().iloc[-1])
         macd_sig = float(macd_obj.macd_signal().iloc[-1])
         macd_diff = macd_val - macd_sig
-        price = float(close.iloc[-1])
+        price = float(close[-1])
 
-        # Thresholds + MACD diff
+        # Thresholds
         rsi_buy = 35
         rsi_sell = 65
         macd_diff_threshold = 0.5
 
+        # Initial signal
         if rsi_val < rsi_buy and macd_diff > macd_diff_threshold:
             signal = "BUY"
         elif rsi_val > rsi_sell and macd_diff < -macd_diff_threshold:
@@ -83,14 +83,18 @@ def get_signal_for(symbol, name):
         else:
             signal = "WAITING"
 
-        # Multi-Timeframe check (15-min)
+        # 15-min Multi-timeframe check
         df_15 = yf.download(symbol, period="1d", interval="15m", progress=False)
         if df_15 is not None and not df_15.empty:
             close_15 = df_15['Close'].dropna()
+            if len(close_15.shape) > 1:
+                close_15 = close_15.iloc[:, 0]
+            close_15 = close_15.values.flatten()
             if len(close_15) >= 30:
                 rsi_15 = float(ta.momentum.RSIIndicator(close_15).rsi().iloc[-1])
-                macd_15 = float(ta.trend.MACD(close_15).macd().iloc[-1])
-                macd_sig_15 = float(ta.trend.MACD(close_15).macd_signal().iloc[-1])
+                macd_obj_15 = ta.trend.MACD(close_15)
+                macd_15 = float(macd_obj_15.macd().iloc[-1])
+                macd_sig_15 = float(macd_obj_15.macd_signal().iloc[-1])
                 macd_diff_15 = macd_15 - macd_sig_15
 
                 if signal == "BUY" and not (rsi_15 < rsi_buy and macd_diff_15 > macd_diff_threshold):
@@ -176,11 +180,27 @@ def run_bot():
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# 🔹 Flask Dashboard & pages (Same as your previous code)
-# ... Signals page, Home page, Coin page, Rules, Tricks remain same ...
+# 🔹 Home route (Dashboard)
+@app.route("/")
+def dashboard():
+    cards = ""
+    for coin, data in latest_data.items():
+        color = "#FFD700"
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
+        cards += f"""
+        <div style="border:1px solid #FFD700;padding:10px;margin:5px;border-radius:10px;">
+            <h3>{coin}</h3>
+            <p>Price: {data['price']}</p>
+            <p style="color:{color}">{data['signal']}</p>
+        </div>
+        """
+    return f"<h1>🚀 Mani Money Mindset</h1>{cards}"
 
+# 🔹 MAIN
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=PORT)
-    
