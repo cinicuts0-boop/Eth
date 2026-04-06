@@ -48,7 +48,8 @@ def common_header(active=None):
         ("Alerts", "/alerts"),
         ("Rules", "/rules"),
         ("Tricks", "/tricks"),
-        ("All Charts", "/signals"), 
+        ("All Charts", "/signals"),
+        ("Stats", "/stats"),
         ("Admin", "/thresholds")
     ]
     nav_html = " | ".join([
@@ -173,6 +174,91 @@ def calculate_stats():
     pnl = (wins*10) - (loss*10)
     accuracy = (wins/total*100) if total>0 else 0
     return total, wins, loss, pnl, round(accuracy,2)
+
+# ===== Stats Graph Page =====
+@app.route("/stats")
+def stats_page():
+
+    wins = sum(1 for t in trade_history if "WIN" in t["result"])
+    loss = sum(1 for t in trade_history if "LOSS" in t["result"])
+    open_trades = sum(1 for t in trade_history if "OPEN" in t["result"])
+
+    return f"""
+    <html>
+    <head>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {{
+            background:#0f172a;
+            color:#FFD700;
+            font-family:Arial;
+            text-align:center;
+        }}
+
+        .box {{
+            background:#1e293b;
+            margin:10px;
+            padding:20px;
+            border-radius:15px;
+            border:1px solid #FFD700;
+        }}
+
+        canvas {{
+            max-width:400px;
+            margin:auto;
+        }}
+
+    </style>
+
+    </head>
+
+    <body>
+
+        {common_header(active="Stats")}
+
+        <div class="box">
+
+            <h2>📊 Win / Loss Statistics</h2>
+
+            <canvas id="statsChart"></canvas>
+
+        </div>
+
+        <script>
+
+        var ctx = document.getElementById('statsChart').getContext('2d');
+
+        var chart = new Chart(ctx, {{
+
+            type: 'doughnut',
+
+            data: {{
+
+                labels: ['WIN', 'LOSS', 'OPEN'],
+
+                datasets: [{{
+                    data: [{wins}, {loss}, {open_trades}],
+                    backgroundColor: [
+                        '#22c55e',
+                        '#ef4444',
+                        '#FFD700'
+                    ]
+                }}]
+
+            }}
+
+        }});
+
+        </script>
+
+    </body>
+
+    </html>
+    """
 
 # ===== Bot Loop =====
 def run_bot():
