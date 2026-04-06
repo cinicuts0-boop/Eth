@@ -1,12 +1,12 @@
-
 import requests
 import time
 import yfinance as yf
 import ta
 import os
-from flask import Flask
+from flask import Flask, render_template_string
 import threading
 import datetime
+import json
 
 app = Flask(__name__)
 
@@ -186,15 +186,11 @@ def home():
     </html>
     """
 
-# 📄 Coin Details Page
+# 📄 Coin Details Page with overlay signals
 @app.route("/coin/<name>")
 def coin_page(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
-    history = "".join([
-        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
     chart_map = {
         "ETH": "BINANCE:ETHUSDT",
         "BTC": "BINANCE:BTCUSDT",
@@ -203,7 +199,20 @@ def coin_page(name):
         "CRUDE": "NYMEX:CL1!"
     }
     symbol = chart_map.get(name, "")
-    return f"""
+    
+    # Last 10 signals for overlay
+    signals_overlay = [
+        {"time": t["time"], "type": t["type"], "price": t["price"]}
+        for t in trade_history if t["coin"] == name
+    ][-10:]
+    
+    # Last 10 trades history
+    history_html = "".join([
+        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
+        for t in trade_history if t["coin"] == name
+    ][-10:])
+    
+    html = f"""
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -227,16 +236,34 @@ def coin_page(name):
             <p>Accuracy: {accuracy}% | PnL: {pnl}</p>
         </div>
         <div class="box">
-            <h3>📈 Chart</h3>
-            <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
+            <h3>📈 Chart with Signals</h3>
+            <iframe id="tv_chart" src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
         </div>
         <div class="box">
             <h3>📜 Trade History</h3>
-            {history if history else "<p>No trades</p>"}
+            {history_html if history_html else "<p>No trades</p>"}
         </div>
+
+        <script>
+            const signals = {json.dumps(signals_overlay)};
+            const iframe = document.getElementById('tv_chart');
+            iframe.onload = function() {{
+                const contentWindow = iframe.contentWindow;
+                if(contentWindow && contentWindow.TradingView) {{
+                    const widget = contentWindow.TradingView.widget;
+                    signals.forEach(s => {{
+                        widget.chart().createShape(
+                            {{time: s.time, price: s.price}},
+                            {{shape: s.type === 'BUY' ? 'arrow_up' : 'arrow_down', color: s.type === 'BUY' ? 'green' : 'red'}}
+                        );
+                    }});
+                }}
+            }};
+        </script>
     </body>
     </html>
     """
+    return html
 
 # Start Bot & Flask
 if __name__ == "__main__":
