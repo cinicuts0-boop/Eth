@@ -8,8 +8,8 @@ import threading
 import datetime
 
 app = Flask(__name__)
-TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN_HERE")
-CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID_HERE")
+TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
+CHAT_ID = os.getenv("CHAT_ID", "8007854479")
 
 # ===== Global Variables =====
 latest_data = {
