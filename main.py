@@ -171,17 +171,21 @@ def update_results():
 
 # 🔹 BOT LOOP
 def run_bot():
+    symbols_map = {
+        "ETH": "ETH-USD",
+        "BTC": "BTC-USD",
+        "NIFTY": "^NSEI",
+        "BANKNIFTY": "^NSEBANK",
+        "CRUDE": "CL=F"
+    }
+
     while True:
         try:
-            get_signal_for("ETH-USD", "ETH")
-            get_signal_for("BTC-USD", "BTC")
-            get_signal_for("^NSEI", "NIFTY")
-            get_signal_for("^NSEBANK", "BANKNIFTY")
-            get_signal_for("CL=F", "CRUDE")
+            for name, symbol in symbols_map.items():
+                get_signal_for(symbol, name)
 
             update_results()
-            time.sleep(300)
-
+            time.sleep(300)  # 5-min interval
         except Exception as e:
             print("BOT ERROR:", e)
             time.sleep(60)
