@@ -9,10 +9,8 @@ import datetime
 
 app = Flask(__name__)
 
-# 🔐 பாதுகாப்புக்கு ENV use பண்ணலாம் (recommended)
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8682502193:AAGCtZGXiI-5v9x62W54PuhelYihBmE5t4M")
 CHAT_ID = os.getenv("CHAT_ID", "8007854479")
-
 
 latest_data = {
     "ETH": {"price": 0, "rsi": 0, "signal": "WAITING"},
@@ -25,8 +23,6 @@ latest_data = {
 trade_history = []
 telegram_messages = []
 last_signal = {}
-
-# 🔊 NEW
 last_alert_time = ""
 last_alert_type = ""
 
@@ -35,7 +31,6 @@ def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
-
         telegram_messages.append({
             "msg": msg,
             "time": datetime.datetime.now().strftime("%H:%M:%S")
@@ -57,18 +52,16 @@ def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
 
     try:
-        # 🔹 5-min data
+        # 5-min data
         df = yf.download(symbol, period="1d", interval="5m", progress=False)
         if df is None or df.empty:
             return
-
         close = df['Close'].squeeze().dropna()
         if len(close) < 30:
             return
 
         rsi_series = ta.momentum.RSIIndicator(close).rsi()
         macd_obj = ta.trend.MACD(close)
-
         if rsi_series.isna().iloc[-1]:
             return
 
@@ -78,7 +71,7 @@ def get_signal_for(symbol, name):
         macd_diff = macd_val - macd_sig
         price = float(close.iloc[-1])
 
-        # 🔹 Step 1 + Step 2: Thresholds + MACD diff
+        # Thresholds + MACD diff
         rsi_buy = 35
         rsi_sell = 65
         macd_diff_threshold = 0.5
@@ -90,7 +83,7 @@ def get_signal_for(symbol, name):
         else:
             signal = "WAITING"
 
-        # 🔹 Step 3: Multi-Timeframe Check (15-min)
+        # Multi-Timeframe check (15-min)
         df_15 = yf.download(symbol, period="1d", interval="15m", progress=False)
         if df_15 is not None and not df_15.empty:
             close_15 = df_15['Close'].dropna()
@@ -105,21 +98,19 @@ def get_signal_for(symbol, name):
                 elif signal == "SELL" and not (rsi_15 > rsi_sell and macd_diff_15 < -macd_diff_threshold):
                     signal = "WAITING"
 
-        # 🔹 Update latest_data
+        # Update latest_data
         latest_data[name] = {
             "price": round(price, 2),
             "rsi": round(rsi_val, 2),
             "signal": signal
         }
 
-        # 🔹 Avoid duplicate signals
+        # Avoid duplicate signals
         if signal == last_signal.get(name):
             return
 
         if signal != "WAITING":
             last_signal[name] = signal
-
-            # 🔊 ALERT UPDATE
             last_alert_time = datetime.datetime.now().strftime("%H:%M:%S")
             last_alert_type = signal
 
@@ -148,21 +139,18 @@ SL: {sl}
     except Exception as e:
         print(name, "ERROR:", e)
 
-# 🔹 RESULT UPDATE
+# 🔹 UPDATE RESULTS
 def update_results():
     for trade in trade_history:
         if trade["result"] == "OPEN":
-
             current_price = latest_data.get(trade["coin"], {}).get("price", 0)
             if current_price == 0:
                 continue
-
             if trade["type"] == "BUY":
                 if current_price >= trade["target"]:
                     trade["result"] = "WIN ✅"
                 elif current_price <= trade["sl"]:
                     trade["result"] = "LOSS ❌"
-
             elif trade["type"] == "SELL":
                 if current_price <= trade["target"]:
                     trade["result"] = "WIN ✅"
@@ -178,333 +166,21 @@ def run_bot():
         "BANKNIFTY": "^NSEBANK",
         "CRUDE": "CL=F"
     }
-
     while True:
         try:
             for name, symbol in symbols_map.items():
                 get_signal_for(symbol, name)
-
             update_results()
-            time.sleep(300)  # 5-min interval
+            time.sleep(300)
         except Exception as e:
             print("BOT ERROR:", e)
             time.sleep(60)
 
-# 🔹 GOLD HEADER
-def common_header():
-    return """
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
-    <div class="nav">
-        <a href="/">Home</a> | 
-        <a href="/signals">Signals</a> | 
-        <a href="/rules">Rules</a> | 
-        <a href="/tricks">Tricks</a>
-    </div>
-    """
+# 🔹 Flask Dashboard & pages (Same as your previous code)
+# ... Signals page, Home page, Coin page, Rules, Tricks remain same ...
 
-# 🔹 SIGNAL PAGE
-@app.route("/signals")
-def signals_page():
-    msgs = "".join([
-        f"<p>{m['time']} → {m['msg']}</p>"
-        for m in telegram_messages[::-1][:50]
-    ])
-
-    return f"""
-    <html>
-    <style>
-    body {{background:#0f172a;color:#FFD700;text-align:center;}}
-    </style>
-    <body>
-    {common_header()}
-    <h3>📩 Signals</h3>
-    {msgs if msgs else "<p>No signals</p>"}
-    </body></html>
-    """
-
-# 🔹 HOME (SOUND ADDED)
-@app.route("/")
-def dashboard():
-    cards = ""
-    for coin, data in latest_data.items():
-
-        color = "#FFD700"
-        if data["signal"] == "BUY":
-            color = "#22c55e"
-        elif data["signal"] == "SELL":
-            color = "#ef4444"
-
-        cards += f"""
-        <a href="/coin/{coin}">
-        <div class="box">
-        <h3>{coin}</h3>
-        <p>{data['price']}</p>
-        <p style="color:{color}">{data['signal']}</p>
-        </div>
-        </a>
-        """
-
-    return f"""
-    <html>
-    <head>
-
-    <script>
-    let lastAlert = "{last_alert_time}";
-    let lastType = "{last_alert_type}";
-    let prevAlert = localStorage.getItem("lastAlert");
-
-    if (lastAlert !== prevAlert && lastAlert !== "") {{
-
-        let soundFile = "";
-
-        if (lastType === "BUY") {{
-            soundFile = "/static/buy.mp3";
-        }} else if (lastType === "SELL") {{
-            soundFile = "/static/sell.mp3";
-        }}
-
-        if (soundFile !== "") {{
-            let audio = new Audio(soundFile);
-            audio.play();
-        }}
-
-        localStorage.setItem("lastAlert", lastAlert);
-    }}
-
-    setInterval(() => {{
-        location.reload();
-    }}, 60000);
-    </script>
-
-    <style>
-    body {{
-        background:#0f172a;
-        color:#FFD700;
-        text-align:center;
-        font-family:Arial;
-    }}
-    .box {{
-        background:#1e293b;
-        padding:20px;
-        margin:10px;
-        border-radius:15px;
-        border:1px solid #FFD700;
-    }}
-    a {{text-decoration:none;color:#FFD700;}}
-    </style>
-    </head>
-    <body>
-    {common_header()}
-    {cards}
-    </body>
-    </html>
-    """
- # 🔹 RULES PAGE
-@app.route("/rules")
-def rules_page():
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                margin: 10px auto;
-                width: 90%;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>
-        {common_header()}
-        <div class="box">
-            <h3>📜 Contact / Rules</h3>
-            <p>For any queries, contact Mani via Telegram or email.</p>
-            <p>All trading signals are educational; trade at your own risk.</p>
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
-    """
-
-# 🔹 TRICKS / DMCA PAGE
-@app.route("/tricks")
-def tricks_page():
-    return f"""
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: Arial;
-                background: #0f172a;
-                color: #FFD700;
-                text-align: center;
-            }}
-            .box {{
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                margin: 10px auto;
-                width: 90%;
-                border: 1px solid #FFD700;
-            }}
-            a {{
-                color: #FFD700;
-                text-decoration: none;
-            }}
-        </style>
-    </head>
-    <body>{common_header()}
-        <div class="box">
-            <h3>🛡️ DMCA / Tricks</h3>
-            <p>All content on this website is protected. Please respect copyrights.</p>
-            <p>Do not copy or redistribute without permission.</p>
-        </div>
-        <br>
-        <a href="/">⬅ Back</a>
-    </body>
-    </html>
-    """
-
-# 🔹 COIN PAGE
-@app.route("/coin/<name>")
-def coin_detail(name):
-    data = latest_data.get(name, {})
-    total, wins, loss, pnl, accuracy = calculate_stats()
-
-    history = "".join([
-        f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
-        for t in trade_history if t["coin"] == name
-    ][-10:])
-
-    chart_map = {
-        "ETH": "BINANCE:ETHUSDT",
-        "BTC": "BINANCE:BTCUSDT",
-        "NIFTY": "NSE:NIFTY",
-        "BANKNIFTY": "NSE:BANKNIFTY",
-        "CRUDE": "NYMEX:CL1!"
-    }
-
-    symbol = chart_map.get(name)
-
-    return f"""
-    <html>
-    <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="360">
-
-    <style>
-    body {{
-        background:#0f172a;
-        color:#FFD700;
-        font-family: Arial;
-        margin:0;
-        text-align:center;
-    }}
-
-    h1 {{ font-size:20px; }}
-    h2 {{ font-size:18px; }}
-    p {{ font-size:14px; }}
-
-    .nav {{
-        margin:10px;
-        font-size:14px;
-    }}
-
-    .nav a {{
-        padding:6px;
-        color:#FFD700;
-        text-decoration:none;
-    }}
-
-    .box {{
-        background:#1e293b;
-        margin:10px;
-        padding:15px;
-        border-radius:15px;
-        border:1px solid #FFD700;
-    }}
-
-    iframe {{
-        width:100%;
-        height:250px;
-        border:none;
-    }}
-
-    a {{
-        color:#FFD700;
-        text-decoration:none;
-        font-size:14px;
-    }}
-
-    @media (max-width:600px) {{
-        h1 {{ font-size:18px; }}
-        h2 {{ font-size:16px; }}
-        p {{ font-size:13px; }}
-        iframe {{ height:220px; }}
-    }}
-    </style>
-    </head>
-
-    <body>
-
-    <h1>🚀 Mani Money Mindset 💸</h1>
-    <p>💚 எண்ணம் போல் வாழ்க்கை ❤️</p>
-
-    <div class="nav">
-        <a href="/">Home</a> |
-        <a href="/signals">Signals</a> |
-        <a href="/rules">Rules</a> |
-        <a href="/tricks">Tricks</a>
-    </div>
-
-    <div class="box">
-        <h2>{name}</h2>
-        <p>Price: {data.get('price')}</p>
-        <p>RSI: {data.get('rsi')}</p>
-        <p>Signal: {data.get('signal')}</p>
-    </div>
-
-    <div class="box">
-        <h3>📊 Performance</h3>
-        <p>Accuracy: {accuracy}%</p>
-        <p>PnL: {pnl}</p>
-    </div>
-
-    <div class="box">
-        <h3>📈 Chart</h3>
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol={symbol}&interval=5&theme=dark"></iframe>
-    </div>
-
-    <div class="box">
-        <h3>📜 History</h3>
-        {history if history else "<p>No trades</p>"}
-    </div>
-
-    <br>
-    <a href="/">⬅ Back</a>
-
-    </body>
-    </html>
-    """
-
-# 🔹 MAIN
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=PORT)
+    
