@@ -27,6 +27,7 @@ last_signal = {}
 last_alert_time = ""
 last_alert_type = ""
 
+# Telegram Notification
 def send_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -38,6 +39,7 @@ def send_telegram(msg):
     except Exception as e:
         print("Telegram Error:", e)
 
+# Stats Calculation
 def calculate_stats():
     total = len(trade_history)
     wins = sum(1 for t in trade_history if "WIN" in t["result"])
@@ -46,6 +48,7 @@ def calculate_stats():
     accuracy = (wins / total * 100) if total > 0 else 0
     return total, wins, loss, pnl, round(accuracy, 2)
 
+# Signal Calculation
 def get_signal_for(symbol, name):
     global latest_data, trade_history, last_signal, last_alert_time, last_alert_type
     try:
@@ -64,8 +67,8 @@ def get_signal_for(symbol, name):
 
         rsi_buy = 35
         rsi_sell = 65
-        macd_diff = macd_val - macd_sig
         macd_diff_threshold = 0.5
+        macd_diff = macd_val - macd_sig
 
         if rsi_val < rsi_buy and macd_diff > macd_diff_threshold:
             signal = "BUY"
@@ -102,6 +105,7 @@ def get_signal_for(symbol, name):
     except Exception as e:
         print(name, "ERROR:", e)
 
+# Update Trade Results
 def update_results():
     for trade in trade_history:
         if trade["result"] != "OPEN":
@@ -120,6 +124,7 @@ def update_results():
             elif current_price >= trade["sl"]:
                 trade["result"] = "LOSS ❌"
 
+# Bot Loop
 def run_bot():
     while True:
         try:
@@ -134,6 +139,7 @@ def run_bot():
             print("BOT ERROR:", e)
             time.sleep(60)
 
+# Common Header
 def common_header():
     return """
     <h1>🚀 Mani Money Mindset 💸</h1>
@@ -146,16 +152,49 @@ def common_header():
     </div>
     """
 
+# 🏠 Home Dashboard
+@app.route("/")
+def home():
+    cards = ""
+    for coin, data in latest_data.items():
+        color = "#FFD700"
+        if data["signal"] == "BUY":
+            color = "#22c55e"
+        elif data["signal"] == "SELL":
+            color = "#ef4444"
+        cards += f"""
+        <div class="box">
+            <h3>{coin}</h3>
+            <p>Price: {data['price']}</p>
+            <p style="color:{color}">Signal: {data['signal']}</p>
+            <a href="/coin/{coin}">View Details</a>
+        </div>
+        """
+    return f"""
+    <html>
+    <head>
+        <style>
+            body {{background:#0f172a;color:#FFD700;text-align:center;font-family:Arial;}}
+            .box {{background:#1e293b;padding:20px;margin:10px;border-radius:15px;border:1px solid #FFD700;}}
+            a {{color:#FFD700;text-decoration:none;}}
+        </style>
+    </head>
+    <body>
+        {common_header()}
+        {cards}
+    </body>
+    </html>
+    """
+
+# 📄 Coin Details Page
 @app.route("/coin/<name>")
 def coin_page(name):
     data = latest_data.get(name, {})
     total, wins, loss, pnl, accuracy = calculate_stats()
-
     history = "".join([
         f"<p>{t['time']} | {t['type']} @ {t['price']} → {t['result']}</p>"
         for t in trade_history if t["coin"] == name
     ][-10:])
-
     chart_map = {
         "ETH": "BINANCE:ETHUSDT",
         "BTC": "BINANCE:BTCUSDT",
@@ -163,9 +202,7 @@ def coin_page(name):
         "BANKNIFTY": "NSE:BANKNIFTY",
         "CRUDE": "NYMEX:CL1!"
     }
-
     symbol = chart_map.get(name, "")
-
     return f"""
     <html>
     <head>
@@ -201,6 +238,7 @@ def coin_page(name):
     </html>
     """
 
+# Start Bot & Flask
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 8080))
