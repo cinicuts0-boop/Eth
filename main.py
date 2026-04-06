@@ -321,7 +321,7 @@ def common_header():
     <h4>💚 எண்ணம் போல் வாழ்க்கை ❤️</h4>
     <div class="nav">
         <a href="/">Home</a> | <a href="/alerts">Alerts</a> | 
-        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a> | <a href="/thresholds">⚙️ Thresholds</a> | <a href="/signals">Signals</a> 
+        <a href="/rules">Rules</a> | <a href="/tricks">Tricks</a> | <a href="/thresholds">⚙️ Thresholds</a> | <a href="/signals">All Charts</a> 
     </div>
     """
 
